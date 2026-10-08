@@ -19,15 +19,20 @@ use App\Controllers\ReportsController;
 use App\Controllers\SettingsController;
 use App\Controllers\CorrectionController;
 use App\Controllers\InspectionFormController;
+use App\Controllers\DocumentController;
+use App\Controllers\ResponsibleController;
 
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 
 switch ($path) {
     case '/login': (new AuthController())->login(); break;
     case '/logout': (new AuthController())->logout(); break;
+    case '/responsible': (new ResponsibleController())->index(); break;
+    case '/responsible/work': (new ResponsibleController())->work(); break;
     case '/works': (new WorksController())->index(); break;
     case '/works/create': (new WorksController())->create(); break;
     case '/work': (new WorkDetailController())->show(); break;
+    case '/work/document': (new DocumentController())->show(); break;
     case '/work/document/upload': (new WorkDetailController())->uploadDocument(); break;
     case '/work/document/review': (new WorkDetailController())->reviewDocument(); break;
     case '/work/transition': (new WorkDetailController())->transition(); break;
