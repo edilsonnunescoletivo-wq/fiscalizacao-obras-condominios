@@ -9,6 +9,9 @@ use App\Controllers\DashboardController;
 use App\Controllers\WorksController;
 use App\Controllers\WorkDetailController;
 use App\Controllers\OperationsController;
+use App\Controllers\MediaController;
+use App\Controllers\AccessController;
+use App\Controllers\NotificationPdfController;
 
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 
@@ -48,6 +51,24 @@ switch ($path) {
         break;
     case '/work/notification/create':
         (new OperationsController())->createNotification();
+        break;
+    case '/inspection/photos':
+        (new MediaController())->inspectionPhotos();
+        break;
+    case '/inspection/photo/upload':
+        (new MediaController())->uploadInspectionPhoto();
+        break;
+    case '/inspection/photo':
+        (new MediaController())->photo();
+        break;
+    case '/work/invite':
+        (new AccessController())->invite();
+        break;
+    case '/invite/accept':
+        (new AccessController())->accept();
+        break;
+    case '/notification/pdf':
+        (new NotificationPdfController())->show();
         break;
     case '/':
         (new DashboardController())->index();
