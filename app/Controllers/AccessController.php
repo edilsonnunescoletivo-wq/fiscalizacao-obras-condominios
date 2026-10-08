@@ -37,7 +37,6 @@ final class AccessController
             http_response_code(422);
             exit('E-mail inválido.');
         }
-
         $pdo = Database::connection();
         $stmt = $pdo->prepare('SELECT w.id,w.condominium_id FROM works w WHERE w.id = ?');
         $stmt->execute([$workId]);
@@ -53,14 +52,12 @@ final class AccessController
             http_response_code(403);
             exit('Acesso não autorizado.');
         }
-
         $rawToken = bin2hex(random_bytes(32));
         $hash = hash('sha256', $rawToken);
         $pdo->prepare('UPDATE work_access_invites SET expires_at = NOW() WHERE work_id = ? AND email = ? AND accepted_at IS NULL')->execute([$workId, $email]);
         $stmt = $pdo->prepare('INSERT INTO work_access_invites(work_id,email,token_hash,expires_at,created_by) VALUES(?,?,?,DATE_ADD(NOW(), INTERVAL 72 HOUR),?)');
         $stmt->execute([$workId, $email, $hash, $user['id']]);
         $this->event($workId, (int)$user['id'], 'WORK_RESPONSIBLE_INVITED', 'Convite do responsável gerado', $email);
-
         $base = rtrim((string)env('APP_URL', ''), '/');
         $url = ($base !== '' ? $base : '') . '/invite/accept?token=' . urlencode($rawToken);
         header('Location: /work?id=' . $workId . '&invite=1&invite_url=' . urlencode($url));
@@ -83,15 +80,15 @@ final class AccessController
             http_response_code(410);
             exit('Convite expirado ou já utilizado.');
         }
+        $stmt = $pdo->prepare('SELECT * FROM users WHERE email = ? LIMIT 1');
+        $stmt->execute([$invite['email']]);
+        $existing = $stmt->fetch();
         $error = null;
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!Csrf::validate($_POST['_token'] ?? null)) {
                 http_response_code(419);
                 exit('Sessão expirada.');
             }
-            $stmt = $pdo->prepare('SELECT * FROM users WHERE email = ? LIMIT 1');
-            $stmt->execute([$invite['email']]);
-            $existing = $stmt->fetch();
             if ($existing) {
                 $password = (string)($_POST['password'] ?? '');
                 if (!password_verify($password, $existing['password_hash'])) {
