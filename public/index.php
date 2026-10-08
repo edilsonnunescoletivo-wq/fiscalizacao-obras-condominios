@@ -7,6 +7,7 @@ require dirname(__DIR__) . '/config/bootstrap.php';
 use App\Controllers\AuthController;
 use App\Controllers\DashboardController;
 use App\Controllers\WorksController;
+use App\Controllers\WorkDetailController;
 
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 
@@ -22,6 +23,18 @@ switch ($path) {
         break;
     case '/works/create':
         (new WorksController())->create();
+        break;
+    case '/work':
+        (new WorkDetailController())->show();
+        break;
+    case '/work/document/upload':
+        (new WorkDetailController())->uploadDocument();
+        break;
+    case '/work/document/review':
+        (new WorkDetailController())->reviewDocument();
+        break;
+    case '/work/transition':
+        (new WorkDetailController())->transition();
         break;
     case '/':
         (new DashboardController())->index();
