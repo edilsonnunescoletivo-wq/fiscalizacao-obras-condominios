@@ -41,7 +41,9 @@ $statusLabels = [
                 <p class="eyebrow">Condomínio</p>
                 <h1><?= htmlspecialchars($condominium['name']) ?></h1>
             </div>
-            <a class="button primary" href="/works/create?condo=<?= (int)$condominium['id'] ?>">+ Nova obra</a>
+            <?php if ($canCreate): ?>
+                <a class="button primary" href="/works/create?condo=<?= (int)$condominium['id'] ?>">+ Nova obra</a>
+            <?php endif; ?>
         </header>
 
         <?php if (isset($_GET['created'])): ?>
@@ -58,9 +60,11 @@ $statusLabels = [
 
             <?php if (!$works): ?>
                 <div class="empty-state">
-                    <h3>Nenhuma obra cadastrada</h3>
-                    <p>Cadastre a primeira obra deste condomínio para iniciar o fluxo documental e de fiscalização.</p>
-                    <a class="button primary" href="/works/create?condo=<?= (int)$condominium['id'] ?>">Cadastrar primeira obra</a>
+                    <h3>Nenhuma obra disponível</h3>
+                    <p><?= $canCreate ? 'Cadastre a primeira obra deste condomínio para iniciar o fluxo documental e de fiscalização.' : 'Não há obra vinculada ao seu usuário neste condomínio.' ?></p>
+                    <?php if ($canCreate): ?>
+                        <a class="button primary" href="/works/create?condo=<?= (int)$condominium['id'] ?>">Cadastrar primeira obra</a>
+                    <?php endif; ?>
                 </div>
             <?php else: ?>
                 <div class="table-wrap">
