@@ -12,6 +12,10 @@ use App\Controllers\OperationsController;
 use App\Controllers\MediaController;
 use App\Controllers\AccessController;
 use App\Controllers\NotificationPdfController;
+use App\Controllers\CompletionController;
+use App\Controllers\CompletionPdfController;
+use App\Controllers\DossierPdfController;
+use App\Controllers\ReportsController;
 
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 
@@ -69,6 +73,24 @@ switch ($path) {
         break;
     case '/notification/pdf':
         (new NotificationPdfController())->show();
+        break;
+    case '/work/completion':
+        (new CompletionController())->show();
+        break;
+    case '/work/completion/start':
+        (new CompletionController())->start();
+        break;
+    case '/work/completion/record':
+        (new CompletionController())->record();
+        break;
+    case '/work/completion/term':
+        (new CompletionPdfController())->show();
+        break;
+    case '/work/dossier':
+        (new DossierPdfController())->show();
+        break;
+    case '/reports':
+        (new ReportsController())->index();
         break;
     case '/':
         (new DashboardController())->index();
