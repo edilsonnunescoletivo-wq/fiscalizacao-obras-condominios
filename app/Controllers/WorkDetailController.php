@@ -69,6 +69,18 @@ final class WorkDetailController
         $stmt->execute([$workId, $work['condominium_id']]);
         $documents = $stmt->fetchAll();
 
+        $stmt = $pdo->prepare('SELECT i.*, u.name inspector_name FROM inspections i JOIN users u ON u.id = i.inspector_user_id WHERE i.work_id = ? ORDER BY i.inspected_at DESC, i.id DESC');
+        $stmt->execute([$workId]);
+        $inspections = $stmt->fetchAll();
+
+        $stmt = $pdo->prepare('SELECT nc.*, u.name creator_name FROM non_conformities nc JOIN users u ON u.id = nc.created_by WHERE nc.work_id = ? ORDER BY FIELD(nc.status,"OPEN","CORRECTED","CLOSED"), nc.created_at DESC');
+        $stmt->execute([$workId]);
+        $nonConformities = $stmt->fetchAll();
+
+        $stmt = $pdo->prepare('SELECT n.*, u.name creator_name FROM notifications n JOIN users u ON u.id = n.created_by WHERE n.work_id = ? ORDER BY n.created_at DESC, n.id DESC');
+        $stmt->execute([$workId]);
+        $notifications = $stmt->fetchAll();
+
         $stmt = $pdo->prepare('SELECT we.*, u.name user_name FROM work_events we LEFT JOIN users u ON u.id = we.user_id WHERE we.work_id = ? ORDER BY we.created_at DESC, we.id DESC');
         $stmt->execute([$workId]);
         $events = $stmt->fetchAll();
@@ -77,6 +89,9 @@ final class WorkDetailController
         $canReview = (bool) array_intersect($roles, ['ADMIN','SYNDIC','MANAGER','INSPECTOR']);
         $canAuthorize = (bool) array_intersect($roles, ['ADMIN','SYNDIC','MANAGER']);
         $canUpload = $canReview || in_array('WORK_RESPONSIBLE', $roles, true);
+        $canInspect = (bool) array_intersect($roles, ['ADMIN','SYNDIC','MANAGER','INSPECTOR']);
+        $canNotify = $canInspect;
+        $canRestrictWork = (bool) array_intersect($roles, ['ADMIN','SYNDIC','MANAGER']);
 
         require dirname(__DIR__, 2) . '/resources_work_detail.php';
     }
