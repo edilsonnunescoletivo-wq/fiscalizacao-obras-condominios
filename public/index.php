@@ -29,6 +29,7 @@ switch ($path) {
     case '/logout': (new AuthController())->logout(); break;
     case '/responsible': (new ResponsibleController())->index(); break;
     case '/responsible/work': (new ResponsibleController())->work(); break;
+    case '/responsible/document/upload': (new ResponsibleController())->uploadDocument(); break;
     case '/works': (new WorksController())->index(); break;
     case '/works/create': (new WorksController())->create(); break;
     case '/work': (new WorkDetailController())->show(); break;
