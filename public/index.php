@@ -16,6 +16,7 @@ use App\Controllers\CompletionController;
 use App\Controllers\CompletionPdfController;
 use App\Controllers\DossierPdfController;
 use App\Controllers\ReportsController;
+use App\Controllers\SettingsController;
 
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 
@@ -91,6 +92,18 @@ switch ($path) {
         break;
     case '/reports':
         (new ReportsController())->index();
+        break;
+    case '/settings':
+        (new SettingsController())->index();
+        break;
+    case '/settings/rules':
+        (new SettingsController())->saveRules();
+        break;
+    case '/settings/template':
+        (new SettingsController())->saveTemplate();
+        break;
+    case '/settings/checklist':
+        (new SettingsController())->addChecklistItem();
         break;
     case '/':
         (new DashboardController())->index();
