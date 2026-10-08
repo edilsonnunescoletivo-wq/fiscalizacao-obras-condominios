@@ -26,7 +26,7 @@ final class ResponsibleController
         $stmt = $pdo->prepare(
             'SELECT w.id,w.unit,w.owner_name,w.work_type,w.status,w.planned_end,c.name condominium_name,
                 (SELECT COUNT(*) FROM non_conformities nc WHERE nc.work_id=w.id AND nc.status<>"CLOSED") pending_corrections,
-                (SELECT COUNT(*) FROM work_documents wd WHERE wd.work_id=w.id AND wd.status IN ("CORRECTION_REQUIRED","REJECTED")) document_corrections,
+                (SELECT COUNT(*) FROM work_documents wd WHERE wd.work_id=w.id AND wd.status IN ("CORRECTION_REQUIRED","REJECTED") AND wd.version=(SELECT MAX(wd2.version) FROM work_documents wd2 WHERE wd2.work_id=wd.work_id AND wd2.document_type_id=wd.document_type_id)) document_corrections,
                 (SELECT COUNT(*) FROM notifications n WHERE n.work_id=w.id AND n.status IN ("ISSUED","DELIVERED")) active_notifications
              FROM works w
              JOIN condominiums c ON c.id=w.condominium_id
