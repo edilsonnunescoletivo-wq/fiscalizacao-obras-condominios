@@ -2,9 +2,11 @@
 
 namespace App\Controllers;
 
+use App\Core\Audit;
 use App\Core\Auth;
 use App\Core\Csrf;
 use App\Core\Database;
+use App\Core\WorkAccess;
 
 final class WorksController
 {
@@ -17,23 +19,11 @@ final class WorksController
         return Auth::user();
     }
 
-    private function rolesForCondo(int $condoId, int $userId): array
-    {
-        $pdo = Database::connection();
-        $stmt = $pdo->prepare(
-            'SELECT r.code FROM condominium_user cu
-             JOIN roles r ON r.id = cu.role_id
-             WHERE cu.condominium_id = ? AND cu.user_id = ? AND cu.active = 1'
-        );
-        $stmt->execute([$condoId, $userId]);
-        return array_column($stmt->fetchAll(), 'code');
-    }
-
     public function index(): void
     {
         $user = $this->requireAuth();
         $condoId = (int)($_GET['condo'] ?? 0);
-        $roles = $this->rolesForCondo($condoId, (int)$user['id']);
+        $roles = WorkAccess::rolesForCondo($condoId, (int)$user['id']);
         if ($condoId <= 0 || !$roles) {
             http_response_code(403);
             exit('Acesso não autorizado');
@@ -59,7 +49,7 @@ final class WorksController
         $stmt->execute($params);
         $works = $stmt->fetchAll();
 
-        $canCreate = (bool) array_intersect($roles, ['ADMIN','SYNDIC','MANAGER','INSPECTOR']);
+        $canCreate = WorkAccess::canInspect($roles);
         require dirname(__DIR__, 2) . '/resources_works.php';
     }
 
@@ -67,8 +57,8 @@ final class WorksController
     {
         $user = $this->requireAuth();
         $condoId = (int)($_GET['condo'] ?? $_POST['condominium_id'] ?? 0);
-        $roles = $this->rolesForCondo($condoId, (int)$user['id']);
-        $canCreate = (bool) array_intersect($roles, ['ADMIN','SYNDIC','MANAGER','INSPECTOR']);
+        $roles = WorkAccess::rolesForCondo($condoId, (int)$user['id']);
+        $canCreate = WorkAccess::canInspect($roles);
         if ($condoId <= 0 || !$canCreate) {
             http_response_code(403);
             exit('Acesso não autorizado');
@@ -99,6 +89,26 @@ final class WorksController
             }
 
             if (!$error) {
+                $data = [
+                    'unit'=>trim((string)$_POST['unit']),
+                    'owner_name'=>trim((string)$_POST['owner_name']),
+                    'owner_email'=>trim((string)($_POST['owner_email'] ?? '')) ?: null,
+                    'owner_phone'=>trim((string)($_POST['owner_phone'] ?? '')) ?: null,
+                    'company_name'=>trim((string)($_POST['company_name'] ?? '')) ?: null,
+                    'company_cnpj'=>trim((string)($_POST['company_cnpj'] ?? '')) ?: null,
+                    'company_contact'=>trim((string)($_POST['company_contact'] ?? '')) ?: null,
+                    'company_phone'=>trim((string)($_POST['company_phone'] ?? '')) ?: null,
+                    'technical_name'=>trim((string)($_POST['technical_name'] ?? '')) ?: null,
+                    'technical_type'=>(($_POST['technical_type'] ?? '') ?: null),
+                    'technical_registry'=>trim((string)($_POST['technical_registry'] ?? '')) ?: null,
+                    'technical_phone'=>trim((string)($_POST['technical_phone'] ?? '')) ?: null,
+                    'technical_email'=>trim((string)($_POST['technical_email'] ?? '')) ?: null,
+                    'work_type'=>trim((string)$_POST['work_type']),
+                    'description'=>trim((string)($_POST['description'] ?? '')) ?: null,
+                    'planned_start'=>(($_POST['planned_start'] ?? '') ?: null),
+                    'planned_end'=>(($_POST['planned_end'] ?? '') ?: null),
+                ];
+
                 $sql = 'INSERT INTO works (
                     condominium_id, unit, owner_name, owner_email, owner_phone,
                     company_name, company_cnpj, company_contact, company_phone,
@@ -107,27 +117,14 @@ final class WorksController
                 ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)';
                 $stmt = $pdo->prepare($sql);
                 $stmt->execute([
-                    $condoId,
-                    trim($_POST['unit']),
-                    trim($_POST['owner_name']),
-                    trim($_POST['owner_email'] ?? '') ?: null,
-                    trim($_POST['owner_phone'] ?? '') ?: null,
-                    trim($_POST['company_name'] ?? '') ?: null,
-                    trim($_POST['company_cnpj'] ?? '') ?: null,
-                    trim($_POST['company_contact'] ?? '') ?: null,
-                    trim($_POST['company_phone'] ?? '') ?: null,
-                    trim($_POST['technical_name'] ?? '') ?: null,
-                    ($_POST['technical_type'] ?? '') ?: null,
-                    trim($_POST['technical_registry'] ?? '') ?: null,
-                    trim($_POST['technical_phone'] ?? '') ?: null,
-                    trim($_POST['technical_email'] ?? '') ?: null,
-                    trim($_POST['work_type']),
-                    trim($_POST['description'] ?? '') ?: null,
-                    ($_POST['planned_start'] ?? '') ?: null,
-                    ($_POST['planned_end'] ?? '') ?: null,
-                    'WAITING_DOCUMENTS',
-                    $user['id'],
+                    $condoId,$data['unit'],$data['owner_name'],$data['owner_email'],$data['owner_phone'],
+                    $data['company_name'],$data['company_cnpj'],$data['company_contact'],$data['company_phone'],
+                    $data['technical_name'],$data['technical_type'],$data['technical_registry'],$data['technical_phone'],$data['technical_email'],
+                    $data['work_type'],$data['description'],$data['planned_start'],$data['planned_end'],'WAITING_DOCUMENTS',$user['id'],
                 ]);
+                $workId = (int)$pdo->lastInsertId();
+                $pdo->prepare('INSERT INTO work_events(work_id,user_id,event_type,title,description) VALUES(?,?,?,?,?)')->execute([$workId,$user['id'],'WORK_CREATED','Obra cadastrada','Unidade '.$data['unit'].' · '.$data['work_type']]);
+                Audit::log((int)$user['id'],$condoId,'work',$workId,'CREATED',['status'=>'WAITING_DOCUMENTS','unit'=>$data['unit'],'owner_name'=>$data['owner_name'],'work_type'=>$data['work_type'],'planned_start'=>$data['planned_start'],'planned_end'=>$data['planned_end']]);
 
                 header('Location: /works?condo=' . $condoId . '&created=1');
                 exit;
