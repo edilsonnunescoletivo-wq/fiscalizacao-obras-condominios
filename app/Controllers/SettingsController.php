@@ -67,9 +67,8 @@ final class SettingsController
             'allow_inspector_adjustment'=>!empty($_POST['allow_inspector_adjustment'])?1:0,
         ];
         $sql='INSERT INTO condominium_rules(default_notification_days,warning_days,adjustment_days,suspension_days,embargo_days,require_photo_on_inspection,require_photo_on_non_conformity,require_final_inspection,block_completion_with_open_nc,allow_inspector_warning,allow_inspector_adjustment,condominium_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE default_notification_days=VALUES(default_notification_days),warning_days=VALUES(warning_days),adjustment_days=VALUES(adjustment_days),suspension_days=VALUES(suspension_days),embargo_days=VALUES(embargo_days),require_photo_on_inspection=VALUES(require_photo_on_inspection),require_photo_on_non_conformity=VALUES(require_photo_on_non_conformity),require_final_inspection=VALUES(require_final_inspection),block_completion_with_open_nc=VALUES(block_completion_with_open_nc),allow_inspector_warning=VALUES(allow_inspector_warning),allow_inspector_adjustment=VALUES(allow_inspector_adjustment)';
-        $pdo->prepare($sql)->execute(array_values($after)+[]);
-        // Reexecute with condominium ID because array_values above intentionally contains only rule fields.
-        $vals=array_values($after); $vals[]=$condoId; $pdo->prepare($sql)->execute($vals);
+        $vals=array_values($after); $vals[]=$condoId;
+        $pdo->prepare($sql)->execute($vals);
         Audit::log((int)$user['id'],$condoId,'condominium_rules',$condoId,'UPDATED',['before'=>$before,'after'=>$after]);
         header('Location: /settings?condo='.$condoId.'&saved=1'); exit;
     }
