@@ -84,8 +84,8 @@ final class CorrectionController
         if($decision==='RETURN' && $notes===''){http_response_code(422);exit('Informe o motivo da devolução.');}
         $newStatus=$decision==='APPROVE'?'CLOSED':'OPEN';
         $pdo=Database::connection();
-        $stmt=$pdo->prepare('UPDATE non_conformities SET status=?,resolved_by=?,resolved_at=CASE WHEN ?="CLOSED" THEN NOW() ELSE NULL END WHERE id=? AND status="CORRECTED"');
-        $stmt->execute([$newStatus,$user['id'],$newStatus,$nc['id']]);
+        $stmt=$pdo->prepare('UPDATE non_conformities SET status=?,resolved_by=CASE WHEN ?="CLOSED" THEN ? ELSE NULL END,resolved_at=CASE WHEN ?="CLOSED" THEN NOW() ELSE NULL END WHERE id=? AND status="CORRECTED"');
+        $stmt->execute([$newStatus,$newStatus,$user['id'],$newStatus,$nc['id']]);
         if($stmt->rowCount()!==1){http_response_code(409);exit('A correção foi alterada por outro usuário. Atualize a página.');}
         $title=$decision==='APPROVE'?'Correção validada pelo fiscal':'Correção devolvida para novo ajuste';
         $pdo->prepare('INSERT INTO work_events(work_id,user_id,event_type,title,description) VALUES(?,?,?,?,?)')->execute([$nc['work_id'],$user['id'],'CORRECTION_REVIEWED',$title,$notes?:null]);
