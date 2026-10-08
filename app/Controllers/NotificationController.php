@@ -10,18 +10,40 @@ use App\Core\WorkAccess;
 
 final class NotificationController
 {
-    public function updateStatus(): void
+    private function requireUser(): array
     {
         if (!Auth::check()) {
             header('Location: /login');
             exit;
         }
+        return Auth::user();
+    }
+
+    public function index(): void
+    {
+        $user = $this->requireUser();
+        $workId = (int)($_GET['work'] ?? 0);
+        $work = WorkAccess::load($workId, (int)$user['id'], true);
+        $roles = $work['_roles'];
+
+        $pdo = Database::connection();
+        $stmt = $pdo->prepare('SELECT n.*,u.name creator_name FROM notifications n JOIN users u ON u.id=n.created_by WHERE n.work_id=? ORDER BY n.created_at DESC,n.id DESC');
+        $stmt->execute([$workId]);
+        $notifications = $stmt->fetchAll();
+        $canManage = WorkAccess::canManage($roles);
+        $canInspect = WorkAccess::canInspect($roles);
+
+        require dirname(__DIR__,2) . '/resources_notifications.php';
+    }
+
+    public function updateStatus(): void
+    {
+        $user = $this->requireUser();
         if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !Csrf::validate($_POST['_token'] ?? null)) {
             http_response_code(419);
             exit('Sessão expirada.');
         }
 
-        $user = Auth::user();
         $workId = (int)($_POST['work_id'] ?? 0);
         $notificationId = (int)($_POST['notification_id'] ?? 0);
         $target = (string)($_POST['target_status'] ?? '');
@@ -72,7 +94,7 @@ final class NotificationController
             'work_id'=>$workId,'before'=>$current,'after'=>$target,'number'=>$notification['number'],'type'=>$notification['type'],
         ]);
 
-        header('Location: /work?id=' . $workId . '&notification_status=1');
+        header('Location: /notifications?work=' . $workId . '&updated=1');
         exit;
     }
 }
