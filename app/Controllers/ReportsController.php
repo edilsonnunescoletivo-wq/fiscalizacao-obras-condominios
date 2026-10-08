@@ -11,18 +11,20 @@ final class ReportsController
     {
         if (!Auth::check()) { header('Location: /login'); exit; }
         $user = Auth::user();
+        $userId = (int)$user['id'];
         $pdo = Database::connection();
         $condoId = (int)($_GET['condo'] ?? 0);
         $status = trim((string)($_GET['status'] ?? ''));
 
         $stmt = $pdo->prepare('SELECT DISTINCT c.id,c.name FROM condominiums c JOIN condominium_user cu ON cu.condominium_id=c.id WHERE cu.user_id=? AND cu.active=1 AND c.active=1 ORDER BY c.name');
-        $stmt->execute([$user['id']]);
+        $stmt->execute([$userId]);
         $condos = $stmt->fetchAll();
         $allowedIds = array_map('intval', array_column($condos,'id'));
         if ($condoId && !in_array($condoId,$allowedIds,true)) { http_response_code(403); exit('Acesso não autorizado.'); }
 
-        $where = ['cu.user_id=?','cu.active=1'];
-        $params = [$user['id']];
+        $responsibleScope = '(EXISTS (SELECT 1 FROM condominium_user cu2 JOIN roles r2 ON r2.id=cu2.role_id WHERE cu2.condominium_id=w.condominium_id AND cu2.user_id=? AND cu2.active=1 AND r2.code<>"WORK_RESPONSIBLE") OR w.responsible_user_id=?)';
+        $where = ['cu.user_id=?','cu.active=1',$responsibleScope];
+        $params = [$userId,$userId,$userId];
         if ($condoId) { $where[]='w.condominium_id=?'; $params[]=$condoId; }
         $validStatuses = ['WAITING_DOCUMENTS','UNDER_REVIEW','CORRECTION_REQUIRED','TECHNICALLY_APPROVED','AUTHORIZED','IN_PROGRESS','NOTIFIED','SUSPENDED','EMBARGOED','COMPLETION_INSPECTION','COMPLETED'];
         if ($status !== '' && in_array($status,$validStatuses,true)) { $where[]='w.status=?'; $params[]=$status; }
@@ -36,7 +38,8 @@ final class ReportsController
           WHERE '.$scope.' GROUP BY w.id ORDER BY FIELD(w.status,"EMBARGOED","SUSPENDED","NOTIFIED","CORRECTION_REQUIRED","IN_PROGRESS","COMPLETION_INSPECTION","AUTHORIZED","TECHNICALLY_APPROVED","UNDER_REVIEW","WAITING_DOCUMENTS","COMPLETED"),w.planned_end,w.id DESC';
         $stmt = $pdo->prepare($sql); $stmt->execute($params); $works = $stmt->fetchAll();
 
-        $kpiWhere = ['cu.user_id=?','cu.active=1']; $kpiParams=[$user['id']];
+        $kpiWhere = ['cu.user_id=?','cu.active=1',$responsibleScope];
+        $kpiParams=[$userId,$userId,$userId];
         if ($condoId) { $kpiWhere[]='w.condominium_id=?'; $kpiParams[]=$condoId; }
         $stmt = $pdo->prepare('SELECT COUNT(DISTINCT w.id) total,
           COUNT(DISTINCT CASE WHEN w.status IN ("IN_PROGRESS","NOTIFIED","SUSPENDED","EMBARGOED","COMPLETION_INSPECTION") THEN w.id END) operational,
