@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Core\Auth;
 use App\Core\Database;
+use App\Core\WorkAccess;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 
@@ -17,13 +18,10 @@ final class DossierPdfController
         $workId = (int)($_GET['id'] ?? 0);
         $pdo = Database::connection();
 
+        $work = WorkAccess::load($workId, (int)$user['id']);
         $stmt = $pdo->prepare('SELECT w.*,c.name condominium_name,c.cnpj,c.address,c.city,c.state FROM works w JOIN condominiums c ON c.id=w.condominium_id WHERE w.id=?');
         $stmt->execute([$workId]);
-        $work = $stmt->fetch();
-        if (!$work) { http_response_code(404); exit('Obra não encontrada.'); }
-        $stmt = $pdo->prepare('SELECT 1 FROM condominium_user WHERE condominium_id=? AND user_id=? AND active=1 LIMIT 1');
-        $stmt->execute([$work['condominium_id'],$user['id']]);
-        if (!$stmt->fetchColumn()) { http_response_code(403); exit('Acesso não autorizado.'); }
+        $work = array_merge($work, $stmt->fetch() ?: []);
 
         $stmt = $pdo->prepare('SELECT dt.name,wd.version,wd.original_name,wd.status,wd.uploaded_at,wd.reviewed_at FROM work_documents wd JOIN document_types dt ON dt.id=wd.document_type_id WHERE wd.work_id=? ORDER BY dt.name,wd.version');
         $stmt->execute([$workId]); $documents = $stmt->fetchAll();
