@@ -57,8 +57,9 @@ jobs:
           set -euo pipefail
           test -f database/migrations/001_initial.sql
           test -f database/migrations/009_schema_migrations.sql
+          test -f database/migrations/010_super_admin_password_setup.sql
           count=$(find database/migrations -maxdepth 1 -type f -name '*.sql' | wc -l)
-          test "$count" -ge 9
+          test "$count" -ge 10
           echo "Migrations encontradas: $count"
 
       - name: Aplicar migrations em MySQL temporario
