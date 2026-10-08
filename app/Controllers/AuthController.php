@@ -36,6 +36,16 @@ final class AuthController
 
     public function logout(): void
     {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405);
+            header('Allow: POST');
+            exit('Método não permitido.');
+        }
+        if (!Csrf::validate($_POST['_token'] ?? null)) {
+            http_response_code(419);
+            exit('Sessão expirada.');
+        }
+
         Auth::logout();
         header('Location: /login');
         exit;
