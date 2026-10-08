@@ -1,0 +1,157 @@
+SET NAMES utf8mb4;
+SET FOREIGN_KEY_CHECKS=0;
+
+CREATE TABLE users (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(150) NOT NULL,
+  email VARCHAR(190) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  phone VARCHAR(30) NULL,
+  active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE condominiums (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(180) NOT NULL,
+  cnpj VARCHAR(20) NULL,
+  address VARCHAR(255) NULL,
+  city VARCHAR(120) NULL,
+  state CHAR(2) NULL,
+  active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE roles (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  code VARCHAR(50) NOT NULL UNIQUE,
+  name VARCHAR(100) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO roles(code,name) VALUES
+('ADMIN','Administrador do Sistema'),
+('SYNDIC','Síndico'),
+('MANAGER','Gerente'),
+('INSPECTOR','Fiscal de Obras'),
+('WORK_RESPONSIBLE','Responsável pela Obra'),
+('VIEWER','Consulta');
+
+CREATE TABLE condominium_user (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  condominium_id BIGINT UNSIGNED NOT NULL,
+  user_id BIGINT UNSIGNED NOT NULL,
+  role_id BIGINT UNSIGNED NOT NULL,
+  active TINYINT(1) NOT NULL DEFAULT 1,
+  UNIQUE KEY uq_condo_user_role(condominium_id,user_id,role_id),
+  CONSTRAINT fk_cu_condo FOREIGN KEY(condominium_id) REFERENCES condominiums(id),
+  CONSTRAINT fk_cu_user FOREIGN KEY(user_id) REFERENCES users(id),
+  CONSTRAINT fk_cu_role FOREIGN KEY(role_id) REFERENCES roles(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE works (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  condominium_id BIGINT UNSIGNED NOT NULL,
+  unit VARCHAR(60) NOT NULL,
+  owner_name VARCHAR(150) NOT NULL,
+  owner_email VARCHAR(190) NULL,
+  owner_phone VARCHAR(30) NULL,
+  responsible_user_id BIGINT UNSIGNED NULL,
+  company_name VARCHAR(180) NULL,
+  company_cnpj VARCHAR(20) NULL,
+  company_contact VARCHAR(150) NULL,
+  company_phone VARCHAR(30) NULL,
+  technical_name VARCHAR(150) NULL,
+  technical_type ENUM('ARCHITECT','ENGINEER','OTHER') NULL,
+  technical_registry VARCHAR(60) NULL,
+  technical_phone VARCHAR(30) NULL,
+  technical_email VARCHAR(190) NULL,
+  work_type VARCHAR(100) NULL,
+  description TEXT NULL,
+  planned_start DATE NULL,
+  planned_end DATE NULL,
+  status ENUM('DRAFT','WAITING_DOCUMENTS','UNDER_REVIEW','CORRECTION_REQUIRED','TECHNICALLY_APPROVED','AUTHORIZED','IN_PROGRESS','NOTIFIED','SUSPENDED','EMBARGOED','COMPLETION_INSPECTION','COMPLETED','CANCELLED') NOT NULL DEFAULT 'DRAFT',
+  created_by BIGINT UNSIGNED NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_works_condo_status(condominium_id,status),
+  CONSTRAINT fk_work_condo FOREIGN KEY(condominium_id) REFERENCES condominiums(id),
+  CONSTRAINT fk_work_responsible FOREIGN KEY(responsible_user_id) REFERENCES users(id),
+  CONSTRAINT fk_work_creator FOREIGN KEY(created_by) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE document_types (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  condominium_id BIGINT UNSIGNED NULL,
+  name VARCHAR(150) NOT NULL,
+  required_default TINYINT(1) NOT NULL DEFAULT 0,
+  active TINYINT(1) NOT NULL DEFAULT 1,
+  CONSTRAINT fk_dt_condo FOREIGN KEY(condominium_id) REFERENCES condominiums(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE work_documents (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  work_id BIGINT UNSIGNED NOT NULL,
+  document_type_id BIGINT UNSIGNED NOT NULL,
+  version INT UNSIGNED NOT NULL DEFAULT 1,
+  original_name VARCHAR(255) NOT NULL,
+  stored_path VARCHAR(255) NOT NULL,
+  status ENUM('PENDING','SUBMITTED','APPROVED','CORRECTION_REQUIRED','REJECTED') NOT NULL DEFAULT 'SUBMITTED',
+  review_notes TEXT NULL,
+  uploaded_by BIGINT UNSIGNED NOT NULL,
+  reviewed_by BIGINT UNSIGNED NULL,
+  uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  reviewed_at DATETIME NULL,
+  CONSTRAINT fk_wd_work FOREIGN KEY(work_id) REFERENCES works(id),
+  CONSTRAINT fk_wd_type FOREIGN KEY(document_type_id) REFERENCES document_types(id),
+  CONSTRAINT fk_wd_uploaded FOREIGN KEY(uploaded_by) REFERENCES users(id),
+  CONSTRAINT fk_wd_reviewed FOREIGN KEY(reviewed_by) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE inspections (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  work_id BIGINT UNSIGNED NOT NULL,
+  inspector_user_id BIGINT UNSIGNED NOT NULL,
+  inspected_at DATETIME NOT NULL,
+  stage VARCHAR(120) NULL,
+  notes TEXT NULL,
+  result ENUM('COMPLIANT','WITH_ISSUES','CRITICAL') NOT NULL DEFAULT 'COMPLIANT',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_insp_work FOREIGN KEY(work_id) REFERENCES works(id),
+  CONSTRAINT fk_insp_user FOREIGN KEY(inspector_user_id) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE notifications (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  work_id BIGINT UNSIGNED NOT NULL,
+  type ENUM('IRREGULARITY','WARNING','ADJUSTMENT','SUSPENSION','EMBARGO','RELEASE') NOT NULL,
+  number VARCHAR(50) NOT NULL,
+  reason VARCHAR(255) NOT NULL,
+  body TEXT NOT NULL,
+  deadline DATETIME NULL,
+  status ENUM('DRAFT','ISSUED','DELIVERED','RESOLVED','CANCELLED') NOT NULL DEFAULT 'DRAFT',
+  created_by BIGINT UNSIGNED NOT NULL,
+  issued_at DATETIME NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_notification_number(number),
+  CONSTRAINT fk_not_work FOREIGN KEY(work_id) REFERENCES works(id),
+  CONSTRAINT fk_not_user FOREIGN KEY(created_by) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE audit_log (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT UNSIGNED NULL,
+  condominium_id BIGINT UNSIGNED NULL,
+  entity_type VARCHAR(80) NOT NULL,
+  entity_id BIGINT UNSIGNED NULL,
+  action VARCHAR(80) NOT NULL,
+  details JSON NULL,
+  ip_address VARCHAR(45) NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_audit_entity(entity_type,entity_id),
+  CONSTRAINT fk_audit_user FOREIGN KEY(user_id) REFERENCES users(id),
+  CONSTRAINT fk_audit_condo FOREIGN KEY(condominium_id) REFERENCES condominiums(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+SET FOREIGN_KEY_CHECKS=1;
