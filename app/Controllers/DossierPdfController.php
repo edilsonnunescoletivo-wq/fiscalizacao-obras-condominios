@@ -19,6 +19,10 @@ final class DossierPdfController
         $pdo = Database::connection();
 
         $work = WorkAccess::load($workId, (int)$user['id']);
+        if (($work['status'] ?? '') !== 'COMPLETED') {
+            http_response_code(422);
+            exit('O dossiê final só fica disponível após a conclusão da obra.');
+        }
         $stmt = $pdo->prepare('SELECT w.*,c.name condominium_name,c.cnpj,c.address,c.city,c.state FROM works w JOIN condominiums c ON c.id=w.condominium_id WHERE w.id=?');
         $stmt->execute([$workId]);
         $work = array_merge($work, $stmt->fetch() ?: []);
@@ -33,13 +37,17 @@ final class DossierPdfController
         $stmt->execute([$workId]); $notifications = $stmt->fetchAll();
         $stmt = $pdo->prepare('SELECT we.*,u.name user_name FROM work_events we LEFT JOIN users u ON u.id=we.user_id WHERE we.work_id=? ORDER BY we.created_at');
         $stmt->execute([$workId]); $events = $stmt->fetchAll();
-        $stmt = $pdo->prepare('SELECT ct.*,u.name inspector_name FROM work_completion_terms ct JOIN users u ON u.id=ct.inspector_user_id WHERE ct.work_id=?');
+        $stmt = $pdo->prepare('SELECT ct.*,u.name inspector_name FROM work_completion_terms ct JOIN users u ON u.id=ct.inspector_user_id WHERE ct.work_id=? AND ct.result="APPROVED"');
         $stmt->execute([$workId]); $completion = $stmt->fetch() ?: null;
+        if (!$completion) {
+            http_response_code(422);
+            exit('A obra está concluída, mas ainda não possui termo de conclusão aprovado.');
+        }
 
         $e = fn($v) => htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
         $html = '<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:DejaVu Sans,sans-serif;color:#222;font-size:10px;line-height:1.45}h1{font-size:20px;text-align:center;margin:18px 0 4px}h2{font-size:14px;border-bottom:1px solid #bbb;padding-bottom:5px;margin-top:20px}.meta{text-align:center;color:#666;margin-bottom:18px}.box{border:1px solid #ccc;padding:9px;margin:8px 0}.row{margin:4px 0}.muted{color:#666}.item{border-bottom:1px solid #e5e5e5;padding:7px 0}.footer{margin-top:28px;border-top:1px solid #bbb;padding-top:8px;color:#666}</style></head><body>';
-        $html .= '<h1>Dossiê Digital da Obra</h1><div class="meta">Gerado em '.date('d/m/Y H:i').'</div>';
-        $html .= '<div class="box"><div class="row"><b>Condomínio:</b> '.$e($work['condominium_name']).'</div><div class="row"><b>Unidade:</b> '.$e($work['unit']).' · <b>Proprietário:</b> '.$e($work['owner_name']).'</div><div class="row"><b>Tipo:</b> '.$e($work['work_type'] ?: '-').' · <b>Status:</b> '.$e($work['status']).'</div><div class="row"><b>Empresa:</b> '.$e($work['company_name'] ?: '-').' · <b>Responsável técnico:</b> '.$e($work['technical_name'] ?: '-').'</div></div>';
+        $html .= '<h1>Dossiê Digital Final da Obra</h1><div class="meta">Gerado em '.date('d/m/Y H:i').'</div>';
+        $html .= '<div class="box"><div class="row"><b>Condomínio:</b> '.$e($work['condominium_name']).'</div><div class="row"><b>Unidade:</b> '.$e($work['unit']).' · <b>Proprietário:</b> '.$e($work['owner_name']).'</div><div class="row"><b>Tipo:</b> '.$e($work['work_type'] ?: '-').' · <b>Status:</b> Concluída</div><div class="row"><b>Empresa:</b> '.$e($work['company_name'] ?: '-').' · <b>Responsável técnico:</b> '.$e($work['technical_name'] ?: '-').'</div></div>';
 
         $html .= '<h2>Documentos</h2>';
         if (!$documents) $html .= '<div class="muted">Nenhum documento registrado.</div>';
@@ -62,11 +70,11 @@ final class DossierPdfController
         foreach ($events as $ev) $html .= '<div class="item"><b>'.$e($ev['title']).'</b> · '.$e($ev['created_at']).'<br><span class="muted">'.$e($ev['user_name'] ?: 'Sistema').'</span>'.($ev['description'] ? '<br>'.$e($ev['description']) : '').'</div>';
 
         $html .= '<h2>Conclusão</h2>';
-        if ($completion) $html .= '<div class="box"><b>Resultado:</b> '.$e($completion['result']).'<br><b>Fiscal:</b> '.$e($completion['inspector_name']).'<br><b>Data:</b> '.$e($completion['completed_at'] ?: $completion['updated_at']).'<br>'.$e($completion['notes'] ?: 'Sem observações adicionais.').'</div>'; else $html .= '<div class="muted">Obra ainda sem termo de conclusão.</div>';
-        $html .= '<div class="footer">Dossiê consolidado automaticamente pelo sistema Fiscaliza Obras. Os arquivos originais permanecem armazenados no sistema e sujeitos às permissões de acesso da obra.</div></body></html>';
+        $html .= '<div class="box"><b>Resultado:</b> Aprovada<br><b>Fiscal:</b> '.$e($completion['inspector_name']).'<br><b>Data:</b> '.$e($completion['completed_at'] ?: $completion['updated_at']).'<br>'.$e($completion['notes'] ?: 'Sem observações adicionais.').'</div>';
+        $html .= '<div class="footer">Dossiê final consolidado automaticamente pelo sistema Fiscaliza Obras. Os arquivos originais permanecem armazenados no sistema e sujeitos às permissões de acesso da obra.</div></body></html>';
 
         $options = new Options(); $options->set('isRemoteEnabled', false);
         $pdf = new Dompdf($options); $pdf->loadHtml($html,'UTF-8'); $pdf->setPaper('A4'); $pdf->render();
-        $pdf->stream('dossie-obra-unidade-'.preg_replace('/[^0-9A-Za-z_-]/','-',$work['unit']).'.pdf',['Attachment'=>false]);
+        $pdf->stream('dossie-final-obra-unidade-'.preg_replace('/[^0-9A-Za-z_-]/','-',$work['unit']).'.pdf',['Attachment'=>false]);
     }
 }
