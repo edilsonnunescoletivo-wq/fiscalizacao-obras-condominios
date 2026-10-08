@@ -27,6 +27,11 @@ final class SettingsController
         return $condo;
     }
 
+    private function requirePost(): void
+    {
+        if ($_SERVER['REQUEST_METHOD']!=='POST' || !Csrf::validate($_POST['_token']??null)) { http_response_code(419); exit('Sessão expirada.'); }
+    }
+
     public function index(): void
     {
         $user=$this->requireAuth();
@@ -36,13 +41,13 @@ final class SettingsController
         $stmt=$pdo->prepare('SELECT * FROM condominium_rules WHERE condominium_id=?'); $stmt->execute([$condoId]); $rules=$stmt->fetch() ?: [];
         $stmt=$pdo->prepare('SELECT * FROM notification_templates WHERE condominium_id=? ORDER BY FIELD(type,"IRREGULARITY","WARNING","ADJUSTMENT","SUSPENSION","EMBARGO","RELEASE")'); $stmt->execute([$condoId]); $templates=$stmt->fetchAll();
         $stmt=$pdo->prepare('SELECT * FROM inspection_checklist_items WHERE condominium_id=? ORDER BY sort_order,id'); $stmt->execute([$condoId]); $checklist=$stmt->fetchAll();
+        $stmt=$pdo->prepare('SELECT * FROM document_types WHERE condominium_id=? ORDER BY required_default DESC,name'); $stmt->execute([$condoId]); $documentTypes=$stmt->fetchAll();
         require dirname(__DIR__,2) . '/resources_settings.php';
     }
 
     public function saveRules(): void
     {
-        $user=$this->requireAuth();
-        if ($_SERVER['REQUEST_METHOD']!=='POST' || !Csrf::validate($_POST['_token']??null)) { http_response_code(419); exit('Sessão expirada.'); }
+        $user=$this->requireAuth(); $this->requirePost();
         $condoId=(int)($_POST['condo_id']??0); $this->requireCondoAccess($condoId,$user);
         $vals=[
             max(0,(int)($_POST['default_notification_days']??5)),
@@ -66,8 +71,7 @@ final class SettingsController
 
     public function saveTemplate(): void
     {
-        $user=$this->requireAuth();
-        if ($_SERVER['REQUEST_METHOD']!=='POST' || !Csrf::validate($_POST['_token']??null)) { http_response_code(419); exit('Sessão expirada.'); }
+        $user=$this->requireAuth(); $this->requirePost();
         $condoId=(int)($_POST['condo_id']??0); $this->requireCondoAccess($condoId,$user);
         $type=(string)($_POST['type']??'');
         if (!in_array($type,['IRREGULARITY','WARNING','ADJUSTMENT','SUSPENSION','EMBARGO','RELEASE'],true)) { http_response_code(422); exit('Tipo inválido.'); }
@@ -81,11 +85,20 @@ final class SettingsController
 
     public function addChecklistItem(): void
     {
-        $user=$this->requireAuth();
-        if ($_SERVER['REQUEST_METHOD']!=='POST' || !Csrf::validate($_POST['_token']??null)) { http_response_code(419); exit('Sessão expirada.'); }
+        $user=$this->requireAuth(); $this->requirePost();
         $condoId=(int)($_POST['condo_id']??0); $this->requireCondoAccess($condoId,$user);
         $label=trim((string)($_POST['label']??'')); if ($label==='') { http_response_code(422); exit('Item obrigatório.'); }
         Database::connection()->prepare('INSERT INTO inspection_checklist_items(condominium_id,label,category,required,active,sort_order) VALUES(?,?,?,?,1,?)')->execute([$condoId,$label,trim((string)($_POST['category']??''))?:null,!empty($_POST['required'])?1:0,(int)($_POST['sort_order']??0)]);
         header('Location: /settings?condo='.$condoId.'&checklist=1'); exit;
+    }
+
+    public function addDocumentType(): void
+    {
+        $user=$this->requireAuth(); $this->requirePost();
+        $condoId=(int)($_POST['condo_id']??0); $this->requireCondoAccess($condoId,$user);
+        $name=trim((string)($_POST['name']??''));
+        if ($name==='') { http_response_code(422); exit('Nome do documento é obrigatório.'); }
+        Database::connection()->prepare('INSERT INTO document_types(condominium_id,name,required_default,active) VALUES(?,?,?,1)')->execute([$condoId,$name,!empty($_POST['required_default'])?1:0]);
+        header('Location: /settings?condo='.$condoId.'&document=1'); exit;
     }
 }
