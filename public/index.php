@@ -55,6 +55,7 @@ switch ($path) {
     case '/notification/pdf': (new NotificationPdfController())->show(); break;
     case '/work/completion': (new CompletionController())->show(); break;
     case '/work/completion/start': (new CompletionController())->start(); break;
+    case '/work/completion/direct': (new CompletionController())->completeDirectly(); break;
     case '/work/completion/record': (new CompletionController())->record(); break;
     case '/work/completion/term': (new CompletionPdfController())->show(); break;
     case '/work/dossier': (new DossierPdfController())->show(); break;
