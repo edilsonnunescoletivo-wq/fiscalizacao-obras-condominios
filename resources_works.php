@@ -31,6 +31,7 @@ $statusLabels = [
             <a href="/">Visão geral</a>
             <a class="active" href="/works?condo=<?= (int)$condominium['id'] ?>">Obras</a>
             <a href="/reports?condo=<?= (int)$condominium['id'] ?>">Relatórios</a>
+            <a href="/settings?condo=<?= (int)$condominium['id'] ?>">Painel do Fiscal</a>
         </nav>
     </aside>
     <main class="content">
@@ -42,7 +43,7 @@ $statusLabels = [
         <?php if (isset($_GET['created'])): ?><div class="alert success">Obra cadastrada com sucesso.</div><?php endif; ?>
 
         <section class="panel">
-            <div class="panel-header"><div><h2>Obras cadastradas</h2><p>Acompanhe situação, unidade e responsáveis.</p></div><a class="button secondary" href="/reports?condo=<?= (int)$condominium['id'] ?>">Ver relatório</a></div>
+            <div class="panel-header"><div><h2>Obras cadastradas</h2><p>Acompanhe situação, unidade e responsáveis.</p></div><div class="inline-actions"><a class="button secondary" href="/settings?condo=<?= (int)$condominium['id'] ?>">Configurar fiscalização</a><a class="button secondary" href="/reports?condo=<?= (int)$condominium['id'] ?>">Ver relatório</a></div></div>
             <?php if (!$works): ?>
                 <div class="empty-state"><h3>Nenhuma obra disponível</h3><p><?= $canCreate ? 'Cadastre a primeira obra deste condomínio para iniciar o fluxo documental e de fiscalização.' : 'Não há obra vinculada ao seu usuário neste condomínio.' ?></p><?php if ($canCreate): ?><a class="button primary" href="/works/create?condo=<?= (int)$condominium['id'] ?>">Cadastrar primeira obra</a><?php endif; ?></div>
             <?php else: ?>
