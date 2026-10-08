@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Core\Auth;
 use App\Core\Database;
+use App\Core\WorkAccess;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 
@@ -30,12 +31,8 @@ final class NotificationPdfController
             http_response_code(404);
             exit('Notificação não encontrada.');
         }
-        $stmt = $pdo->prepare('SELECT 1 FROM condominium_user WHERE condominium_id=? AND user_id=? AND active=1 LIMIT 1');
-        $stmt->execute([$n['condominium_id'], $user['id']]);
-        if (!$stmt->fetchColumn()) {
-            http_response_code(403);
-            exit('Acesso não autorizado.');
-        }
+
+        WorkAccess::load((int)$n['work_id'], (int)$user['id']);
 
         $typeLabels = [
             'IRREGULARITY'=>'Notificação de Irregularidade','WARNING'=>'Advertência','ADJUSTMENT'=>'Solicitação de Adequação',
