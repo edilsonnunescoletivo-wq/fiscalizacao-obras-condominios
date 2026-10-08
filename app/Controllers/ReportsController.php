@@ -1,0 +1,52 @@
+<?php
+
+namespace App\Controllers;
+
+use App\Core\Auth;
+use App\Core\Database;
+
+final class ReportsController
+{
+    public function index(): void
+    {
+        if (!Auth::check()) { header('Location: /login'); exit; }
+        $user = Auth::user();
+        $pdo = Database::connection();
+        $condoId = (int)($_GET['condo'] ?? 0);
+        $status = trim((string)($_GET['status'] ?? ''));
+
+        $stmt = $pdo->prepare('SELECT DISTINCT c.id,c.name FROM condominiums c JOIN condominium_user cu ON cu.condominium_id=c.id WHERE cu.user_id=? AND cu.active=1 AND c.active=1 ORDER BY c.name');
+        $stmt->execute([$user['id']]);
+        $condos = $stmt->fetchAll();
+        $allowedIds = array_map('intval', array_column($condos,'id'));
+        if ($condoId && !in_array($condoId,$allowedIds,true)) { http_response_code(403); exit('Acesso não autorizado.'); }
+
+        $where = ['cu.user_id=?','cu.active=1'];
+        $params = [$user['id']];
+        if ($condoId) { $where[]='w.condominium_id=?'; $params[]=$condoId; }
+        $validStatuses = ['WAITING_DOCUMENTS','UNDER_REVIEW','CORRECTION_REQUIRED','TECHNICALLY_APPROVED','AUTHORIZED','IN_PROGRESS','NOTIFIED','SUSPENDED','EMBARGOED','COMPLETION_INSPECTION','COMPLETED'];
+        if ($status !== '' && in_array($status,$validStatuses,true)) { $where[]='w.status=?'; $params[]=$status; }
+        $scope = implode(' AND ',$where);
+
+        $sql = 'SELECT w.id,w.condominium_id,w.unit,w.owner_name,w.work_type,w.status,w.planned_end,c.name condominium_name,
+          (SELECT COUNT(*) FROM non_conformities nc WHERE nc.work_id=w.id AND nc.status="OPEN") open_nc,
+          (SELECT COUNT(*) FROM inspections i WHERE i.work_id=w.id) inspections_count,
+          (SELECT COUNT(*) FROM notifications n WHERE n.work_id=w.id) notifications_count
+          FROM works w JOIN condominiums c ON c.id=w.condominium_id JOIN condominium_user cu ON cu.condominium_id=w.condominium_id
+          WHERE '.$scope.' GROUP BY w.id ORDER BY FIELD(w.status,"EMBARGOED","SUSPENDED","NOTIFIED","CORRECTION_REQUIRED","IN_PROGRESS","COMPLETION_INSPECTION","AUTHORIZED","TECHNICALLY_APPROVED","UNDER_REVIEW","WAITING_DOCUMENTS","COMPLETED"),w.planned_end,w.id DESC';
+        $stmt = $pdo->prepare($sql); $stmt->execute($params); $works = $stmt->fetchAll();
+
+        $kpiWhere = ['cu.user_id=?','cu.active=1']; $kpiParams=[$user['id']];
+        if ($condoId) { $kpiWhere[]='w.condominium_id=?'; $kpiParams[]=$condoId; }
+        $stmt = $pdo->prepare('SELECT COUNT(DISTINCT w.id) total,
+          COUNT(DISTINCT CASE WHEN w.status IN ("IN_PROGRESS","NOTIFIED","SUSPENDED","EMBARGOED","COMPLETION_INSPECTION") THEN w.id END) operational,
+          COUNT(DISTINCT CASE WHEN w.status="COMPLETED" THEN w.id END) completed,
+          COUNT(DISTINCT CASE WHEN w.status="EMBARGOED" THEN w.id END) embargoed,
+          COUNT(DISTINCT CASE WHEN w.status="SUSPENDED" THEN w.id END) suspended,
+          COUNT(DISTINCT CASE WHEN EXISTS(SELECT 1 FROM non_conformities nc WHERE nc.work_id=w.id AND nc.status="OPEN") THEN w.id END) with_open_nc
+          FROM works w JOIN condominium_user cu ON cu.condominium_id=w.condominium_id WHERE '.implode(' AND ',$kpiWhere));
+        $stmt->execute($kpiParams); $kpis = $stmt->fetch() ?: [];
+
+        require dirname(__DIR__,2) . '/resources_reports.php';
+    }
+}
