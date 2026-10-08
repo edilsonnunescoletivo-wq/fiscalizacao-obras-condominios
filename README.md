@@ -71,7 +71,8 @@ Cada condomínio possui configuração independente para:
 - arquivos em `/public_html/fiscalizacao-homolog`;
 - subdomínio alvo `fiscalizacao-homolog.sindicosgestao.com.br`;
 - document root planejado: `/public_html/fiscalizacao-homolog/public`;
-- instalador de uso único: `public/install.php`.
+- instalador de uso único: `public/install.php`;
+- validação ponta a ponta das últimas migrations e telas ainda depende da ativação completa do subdomínio.
 
 ## Segurança
 Nunca comitar `.env`, senhas, credenciais da Locaweb, dados reais de condomínio ou segredos de implantação. Uploads permanecem fora da pasta pública e são entregues por rotas autenticadas.
