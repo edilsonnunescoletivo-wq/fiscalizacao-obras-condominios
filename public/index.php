@@ -18,6 +18,7 @@ use App\Controllers\DossierPdfController;
 use App\Controllers\ReportsController;
 use App\Controllers\SettingsController;
 use App\Controllers\CorrectionController;
+use App\Controllers\InspectionFormController;
 
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 
@@ -31,6 +32,8 @@ switch ($path) {
     case '/work/document/review': (new WorkDetailController())->reviewDocument(); break;
     case '/work/transition': (new WorkDetailController())->transition(); break;
     case '/work/inspection/create': (new OperationsController())->createInspection(); break;
+    case '/inspection/new': (new InspectionFormController())->show(); break;
+    case '/inspection/create-dynamic': (new InspectionFormController())->create(); break;
     case '/work/non-conformity/create': (new OperationsController())->createNonConformity(); break;
     case '/work/non-conformity/close': (new OperationsController())->closeNonConformity(); break;
     case '/work/notification/create': (new OperationsController())->createNotification(); break;
