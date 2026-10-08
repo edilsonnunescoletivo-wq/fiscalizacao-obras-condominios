@@ -2,9 +2,11 @@
 
 namespace App\Controllers;
 
+use App\Core\Audit;
 use App\Core\Auth;
 use App\Core\Csrf;
 use App\Core\Database;
+use App\Core\WorkAccess;
 
 final class AccessController
 {
@@ -37,27 +39,28 @@ final class AccessController
             http_response_code(422);
             exit('E-mail inválido.');
         }
-        $pdo = Database::connection();
-        $stmt = $pdo->prepare('SELECT w.id,w.condominium_id FROM works w WHERE w.id = ?');
-        $stmt->execute([$workId]);
-        $work = $stmt->fetch();
-        if (!$work) {
-            http_response_code(404);
-            exit('Obra não encontrada.');
-        }
-        $stmt = $pdo->prepare('SELECT r.code FROM condominium_user cu JOIN roles r ON r.id=cu.role_id WHERE cu.condominium_id=? AND cu.user_id=? AND cu.active=1');
-        $stmt->execute([$work['condominium_id'], $user['id']]);
-        $roles = array_column($stmt->fetchAll(), 'code');
-        if (!array_intersect($roles, ['ADMIN','SYNDIC','MANAGER'])) {
+
+        $work = WorkAccess::load($workId, (int)$user['id']);
+        if (!WorkAccess::canManage($work['_roles'])) {
             http_response_code(403);
             exit('Acesso não autorizado.');
         }
+
+        $pdo = Database::connection();
         $rawToken = bin2hex(random_bytes(32));
         $hash = hash('sha256', $rawToken);
         $pdo->prepare('UPDATE work_access_invites SET expires_at = NOW() WHERE work_id = ? AND email = ? AND accepted_at IS NULL')->execute([$workId, $email]);
         $stmt = $pdo->prepare('INSERT INTO work_access_invites(work_id,email,token_hash,expires_at,created_by) VALUES(?,?,?,DATE_ADD(NOW(), INTERVAL 72 HOUR),?)');
         $stmt->execute([$workId, $email, $hash, $user['id']]);
+        $inviteId = (int)$pdo->lastInsertId();
+
         $this->event($workId, (int)$user['id'], 'WORK_RESPONSIBLE_INVITED', 'Convite do responsável gerado', $email);
+        Audit::log((int)$user['id'], (int)$work['condominium_id'], 'work_access_invite', $inviteId, 'CREATED', [
+            'work_id' => $workId,
+            'email' => $email,
+            'expires_in_hours' => 72,
+        ]);
+
         $base = rtrim((string)env('APP_URL', ''), '/');
         $url = ($base !== '' ? $base : '') . '/invite/accept?token=' . urlencode($rawToken);
         header('Location: /work?id=' . $workId . '&invite=1&invite_url=' . urlencode($url));
@@ -80,49 +83,72 @@ final class AccessController
             http_response_code(410);
             exit('Convite expirado ou já utilizado.');
         }
+
         $stmt = $pdo->prepare('SELECT * FROM users WHERE email = ? LIMIT 1');
         $stmt->execute([$invite['email']]);
         $existing = $stmt->fetch();
         $error = null;
+
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!Csrf::validate($_POST['_token'] ?? null)) {
                 http_response_code(419);
                 exit('Sessão expirada.');
             }
+
+            $name = trim((string)($_POST['name'] ?? ''));
+            $password = (string)($_POST['password'] ?? '');
             if ($existing) {
-                $password = (string)($_POST['password'] ?? '');
                 if (!password_verify($password, $existing['password_hash'])) {
                     $error = 'Senha inválida para a conta já existente.';
-                } else {
-                    $userId = (int)$existing['id'];
                 }
-            } else {
-                $name = trim((string)($_POST['name'] ?? ''));
-                $password = (string)($_POST['password'] ?? '');
-                if ($name === '' || strlen($password) < 8) {
-                    $error = 'Informe seu nome e uma senha com pelo menos 8 caracteres.';
-                } else {
-                    $stmt = $pdo->prepare('INSERT INTO users(name,email,password_hash,active) VALUES(?,?,?,1)');
-                    $stmt->execute([$name, $invite['email'], password_hash($password, PASSWORD_DEFAULT)]);
-                    $userId = (int)$pdo->lastInsertId();
-                }
+            } elseif ($name === '' || strlen($password) < 8) {
+                $error = 'Informe seu nome e uma senha com pelo menos 8 caracteres.';
             }
+
             if (!$error) {
                 $pdo->beginTransaction();
                 try {
-                    $stmt = $pdo->query("SELECT id FROM roles WHERE code='WORK_RESPONSIBLE' LIMIT 1");
-                    $roleId = (int)$stmt->fetchColumn();
+                    $lock = $pdo->prepare('SELECT id FROM work_access_invites WHERE id=? AND token_hash=? AND accepted_at IS NULL AND expires_at > NOW() FOR UPDATE');
+                    $lock->execute([$invite['id'], $hash]);
+                    if (!$lock->fetchColumn()) {
+                        throw new \RuntimeException('Convite não está mais disponível.');
+                    }
+
+                    if ($existing) {
+                        $userId = (int)$existing['id'];
+                        $loginUser = $existing;
+                    } else {
+                        $stmt = $pdo->prepare('INSERT INTO users(name,email,password_hash,active) VALUES(?,?,?,1)');
+                        $stmt->execute([$name, $invite['email'], password_hash($password, PASSWORD_DEFAULT)]);
+                        $userId = (int)$pdo->lastInsertId();
+                        $loginUser = ['id' => $userId, 'name' => $name, 'email' => $invite['email']];
+                    }
+
+                    $roleId = (int)$pdo->query("SELECT id FROM roles WHERE code='WORK_RESPONSIBLE' LIMIT 1")->fetchColumn();
+                    if ($roleId <= 0) {
+                        throw new \RuntimeException('Perfil de responsável pela obra não encontrado.');
+                    }
+
                     $stmt = $pdo->prepare('INSERT IGNORE INTO condominium_user(condominium_id,user_id,role_id,active) VALUES(?,?,?,1)');
                     $stmt->execute([$invite['condominium_id'], $userId, $roleId]);
                     $pdo->prepare('UPDATE works SET responsible_user_id=? WHERE id=?')->execute([$userId, $invite['work_id']]);
-                    $pdo->prepare('UPDATE work_access_invites SET accepted_at=NOW() WHERE id=?')->execute([$invite['id']]);
+                    $stmt = $pdo->prepare('UPDATE work_access_invites SET accepted_at=NOW() WHERE id=? AND accepted_at IS NULL');
+                    $stmt->execute([$invite['id']]);
+                    if ($stmt->rowCount() !== 1) {
+                        throw new \RuntimeException('Convite já utilizado.');
+                    }
                     $pdo->commit();
                 } catch (\Throwable $e) {
                     if ($pdo->inTransaction()) $pdo->rollBack();
                     throw $e;
                 }
-                $_SESSION['user_id'] = $userId;
-                header('Location: /work?id=' . (int)$invite['work_id'] . '&access=1');
+
+                Audit::log($userId, (int)$invite['condominium_id'], 'work', (int)$invite['work_id'], 'RESPONSIBLE_ACCESS_ACCEPTED', [
+                    'invite_id' => (int)$invite['id'],
+                    'email' => $invite['email'],
+                ]);
+                Auth::login($loginUser);
+                header('Location: /responsible/work?id=' . (int)$invite['work_id'] . '&access=1');
                 exit;
             }
         }
