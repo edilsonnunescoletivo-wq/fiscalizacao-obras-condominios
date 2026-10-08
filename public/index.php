@@ -44,6 +44,7 @@ switch ($path) {
     case '/work/non-conformity/create': (new OperationsController())->createNonConformity(); break;
     case '/work/non-conformity/close': (new OperationsController())->closeNonConformity(); break;
     case '/work/notification/create': (new OperationsController())->createNotification(); break;
+    case '/notifications': (new NotificationController())->index(); break;
     case '/work/notification/status': (new NotificationController())->updateStatus(); break;
     case '/corrections': (new CorrectionController())->index(); break;
     case '/work/non-conformity/correction': (new CorrectionController())->submit(); break;
