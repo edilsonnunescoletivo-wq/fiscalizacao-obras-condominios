@@ -2,9 +2,11 @@
 
 namespace App\Controllers;
 
+use App\Core\Audit;
 use App\Core\Auth;
 use App\Core\Csrf;
 use App\Core\Database;
+use App\Core\WorkAccess;
 
 final class WorkDetailController
 {
@@ -17,38 +19,9 @@ final class WorkDetailController
         return Auth::user();
     }
 
-    private function rolesForCondo(int $condoId, int $userId): array
-    {
-        $pdo = Database::connection();
-        $stmt = $pdo->prepare('SELECT r.code FROM condominium_user cu JOIN roles r ON r.id = cu.role_id WHERE cu.condominium_id = ? AND cu.user_id = ? AND cu.active = 1');
-        $stmt->execute([$condoId, $userId]);
-        return array_column($stmt->fetchAll(), 'code');
-    }
-
     private function loadWork(int $workId, array $user): array
     {
-        $pdo = Database::connection();
-        $stmt = $pdo->prepare('SELECT w.*, c.name condominium_name FROM works w JOIN condominiums c ON c.id = w.condominium_id WHERE w.id = ?');
-        $stmt->execute([$workId]);
-        $work = $stmt->fetch();
-        if (!$work) {
-            http_response_code(404);
-            exit('Obra não encontrada');
-        }
-
-        $roles = $this->rolesForCondo((int)$work['condominium_id'], (int)$user['id']);
-        if (!$roles) {
-            http_response_code(403);
-            exit('Acesso não autorizado');
-        }
-
-        if (in_array('WORK_RESPONSIBLE', $roles, true) && count(array_diff($roles, ['WORK_RESPONSIBLE'])) === 0 && (int)$work['responsible_user_id'] !== (int)$user['id']) {
-            http_response_code(403);
-            exit('Acesso não autorizado');
-        }
-
-        $work['_roles'] = $roles;
-        return $work;
+        return WorkAccess::load($workId, (int)$user['id']);
     }
 
     private function event(int $workId, int $userId, string $type, string $title, ?string $description = null): void
@@ -85,13 +58,17 @@ final class WorkDetailController
         $stmt->execute([$workId]);
         $events = $stmt->fetchAll();
 
+        $stmt = $pdo->prepare('SELECT * FROM condominium_rules WHERE condominium_id=?');
+        $stmt->execute([$work['condominium_id']]);
+        $rules = $stmt->fetch() ?: [];
+
         $roles = $work['_roles'];
-        $canReview = (bool) array_intersect($roles, ['ADMIN','SYNDIC','MANAGER','INSPECTOR']);
-        $canAuthorize = (bool) array_intersect($roles, ['ADMIN','SYNDIC','MANAGER']);
+        $canReview = WorkAccess::canInspect($roles);
+        $canAuthorize = WorkAccess::canManage($roles);
         $canUpload = $canReview || in_array('WORK_RESPONSIBLE', $roles, true);
-        $canInspect = (bool) array_intersect($roles, ['ADMIN','SYNDIC','MANAGER','INSPECTOR']);
+        $canInspect = WorkAccess::canInspect($roles);
         $canNotify = $canInspect;
-        $canRestrictWork = (bool) array_intersect($roles, ['ADMIN','SYNDIC','MANAGER']);
+        $canRestrictWork = WorkAccess::canManage($roles);
 
         require dirname(__DIR__, 2) . '/resources_work_detail.php';
     }
@@ -108,7 +85,7 @@ final class WorkDetailController
         $typeId = (int)($_POST['document_type_id'] ?? 0);
         $work = $this->loadWork($workId, $user);
         $roles = $work['_roles'];
-        $canUpload = (bool) array_intersect($roles, ['ADMIN','SYNDIC','MANAGER','INSPECTOR','WORK_RESPONSIBLE']);
+        $canUpload = WorkAccess::canInspect($roles) || in_array('WORK_RESPONSIBLE', $roles, true);
         if (!$canUpload || $typeId <= 0 || empty($_FILES['document']['tmp_name'])) {
             http_response_code(422);
             exit('Documento inválido.');
@@ -153,10 +130,15 @@ final class WorkDetailController
         }
 
         $relative = 'storage/uploads/works/' . $workId . '/' . $storedName;
+        $originalName = basename((string)$file['name']);
         $stmt = $pdo->prepare('INSERT INTO work_documents (work_id, document_type_id, version, original_name, stored_path, status, uploaded_by) VALUES (?,?,?,?,?,?,?)');
-        $stmt->execute([$workId, $typeId, $version, basename((string)$file['name']), $relative, 'SUBMITTED', $user['id']]);
+        $stmt->execute([$workId, $typeId, $version, $originalName, $relative, 'SUBMITTED', $user['id']]);
+        $documentId = (int)$pdo->lastInsertId();
         $pdo->prepare('UPDATE works SET status = CASE WHEN status IN ("WAITING_DOCUMENTS","CORRECTION_REQUIRED") THEN "UNDER_REVIEW" ELSE status END WHERE id = ?')->execute([$workId]);
-        $this->event($workId, (int)$user['id'], 'DOCUMENT_UPLOADED', 'Documento enviado', basename((string)$file['name']) . ' · versão ' . $version);
+        $this->event($workId, (int)$user['id'], 'DOCUMENT_UPLOADED', 'Documento enviado', $originalName . ' · versão ' . $version);
+        Audit::log((int)$user['id'], (int)$work['condominium_id'], 'work_document', $documentId, 'UPLOADED', [
+            'work_id'=>$workId,'document_type_id'=>$typeId,'version'=>$version,'original_name'=>$originalName,
+        ]);
 
         header('Location: /work?id=' . $workId . '&uploaded=1');
         exit;
@@ -174,7 +156,7 @@ final class WorkDetailController
         $decision = (string)($_POST['decision'] ?? '');
         $notes = trim((string)($_POST['review_notes'] ?? '')) ?: null;
         $work = $this->loadWork($workId, $user);
-        if (!array_intersect($work['_roles'], ['ADMIN','SYNDIC','MANAGER','INSPECTOR'])) {
+        if (!WorkAccess::canInspect($work['_roles'])) {
             http_response_code(403);
             exit('Acesso não autorizado');
         }
@@ -184,17 +166,28 @@ final class WorkDetailController
         }
 
         $pdo = Database::connection();
+        $stmt = $pdo->prepare('SELECT status FROM work_documents WHERE id=? AND work_id=?');
+        $stmt->execute([$documentId,$workId]);
+        $beforeStatus = $stmt->fetchColumn();
+        if ($beforeStatus !== 'SUBMITTED') {
+            http_response_code(422);
+            exit('Documento não está disponível para análise.');
+        }
+
         $stmt = $pdo->prepare('UPDATE work_documents SET status = ?, review_notes = ?, reviewed_by = ?, reviewed_at = NOW() WHERE id = ? AND work_id = ? AND status = "SUBMITTED"');
         $stmt->execute([$decision, $notes, $user['id'], $documentId, $workId]);
         if ($stmt->rowCount() !== 1) {
-            http_response_code(422);
-            exit('Documento não está disponível para análise.');
+            http_response_code(409);
+            exit('O documento foi alterado por outro usuário. Atualize a página.');
         }
         if ($decision === 'CORRECTION_REQUIRED' || $decision === 'REJECTED') {
             $pdo->prepare('UPDATE works SET status = "CORRECTION_REQUIRED" WHERE id = ?')->execute([$workId]);
         }
         $labels = ['APPROVED' => 'Documento aprovado', 'CORRECTION_REQUIRED' => 'Correção solicitada', 'REJECTED' => 'Documento reprovado'];
         $this->event($workId, (int)$user['id'], 'DOCUMENT_REVIEWED', $labels[$decision], $notes);
+        Audit::log((int)$user['id'], (int)$work['condominium_id'], 'work_document', $documentId, 'REVIEWED', [
+            'work_id'=>$workId,'before'=>$beforeStatus,'decision'=>$decision,'notes'=>$notes,
+        ]);
         header('Location: /work?id=' . $workId . '&reviewed=1');
         exit;
     }
@@ -210,8 +203,8 @@ final class WorkDetailController
         $target = (string)($_POST['target_status'] ?? '');
         $work = $this->loadWork($workId, $user);
         $roles = $work['_roles'];
-        $canReview = (bool) array_intersect($roles, ['ADMIN','SYNDIC','MANAGER','INSPECTOR']);
-        $canAuthorize = (bool) array_intersect($roles, ['ADMIN','SYNDIC','MANAGER']);
+        $canReview = WorkAccess::canInspect($roles);
+        $canAuthorize = WorkAccess::canManage($roles);
 
         $allowed = [];
         if ($canReview && in_array($work['status'], ['UNDER_REVIEW','CORRECTION_REQUIRED','WAITING_DOCUMENTS'], true)) {
@@ -238,9 +231,11 @@ final class WorkDetailController
             }
         }
 
+        $before = (string)$work['status'];
         $pdo->prepare('UPDATE works SET status = ? WHERE id = ?')->execute([$target, $workId]);
         $labels = ['TECHNICALLY_APPROVED' => 'Obra aprovada tecnicamente', 'AUTHORIZED' => 'Obra autorizada para início', 'IN_PROGRESS' => 'Obra iniciada'];
         $this->event($workId, (int)$user['id'], 'STATUS_CHANGED', $labels[$target]);
+        Audit::log((int)$user['id'], (int)$work['condominium_id'], 'work', $workId, 'STATUS_CHANGED', ['before'=>$before,'after'=>$target]);
         header('Location: /work?id=' . $workId . '&status=1');
         exit;
     }
