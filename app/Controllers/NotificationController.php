@@ -50,9 +50,11 @@ final class NotificationController
             http_response_code(403);
             exit('Somente a administração pode cancelar uma notificação.');
         }
-        if ($target === 'RESOLVED' && in_array($notification['type'], ['SUSPENSION','EMBARGO'], true) && in_array($work['status'], ['SUSPENDED','EMBARGOED'], true)) {
+        $activeRestriction = in_array($notification['type'], ['SUSPENSION','EMBARGO'], true)
+            && in_array($work['status'], ['SUSPENDED','EMBARGOED'], true);
+        if ($activeRestriction && in_array($target, ['RESOLVED','CANCELLED'], true)) {
             http_response_code(422);
-            exit('Libere a obra antes de resolver a notificação de suspensão ou embargo.');
+            exit('Emita a Liberação da obra antes de resolver ou cancelar a suspensão/embargo.');
         }
 
         $stmt = $pdo->prepare('UPDATE notifications SET status=? WHERE id=? AND work_id=? AND status=?');
