@@ -1,7 +1,7 @@
 SET NAMES utf8mb4;
 
 ALTER TABLE notifications
-  DROP INDEX number,
+  DROP INDEX uq_notification_number,
   ADD INDEX idx_notifications_number (number);
 
 CREATE TABLE notification_sequences (
