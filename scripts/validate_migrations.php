@@ -49,6 +49,7 @@ $requiredTables = [
     'work_events','inspections','inspection_photos','non_conformities','non_conformity_evidence',
     'notifications','notification_sequences','work_access_invites','work_completion_terms',
     'condominium_rules','notification_templates','inspection_checklist_items','severity_action_rules','audit_log',
+    'schema_migrations',
 ];
 
 $present = $pdo->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);
@@ -74,4 +75,15 @@ if ($uniqueLegacy) {
     throw new RuntimeException('Índice UNIQUE legado uq_notification_number ainda existe.');
 }
 
-echo 'OK: ' . count($migrations) . ' migrations aplicadas e estrutura essencial validada.' . PHP_EOL;
+$expectedMigrations = array_map('basename', $migrations);
+$recordedMigrations = $pdo->query('SELECT migration FROM schema_migrations ORDER BY migration')->fetchAll(PDO::FETCH_COLUMN);
+$missingHistory = array_values(array_diff($expectedMigrations, $recordedMigrations));
+if ($missingHistory) {
+    throw new RuntimeException('Migrations sem histórico: ' . implode(', ', $missingHistory));
+}
+
+if (count($recordedMigrations) !== count($expectedMigrations)) {
+    throw new RuntimeException('Histórico de migrations possui quantidade inesperada de registros.');
+}
+
+echo 'OK: ' . count($migrations) . ' migrations aplicadas, registradas e estrutura essencial validada.' . PHP_EOL;
