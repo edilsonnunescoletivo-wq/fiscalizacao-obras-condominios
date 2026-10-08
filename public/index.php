@@ -37,6 +37,10 @@ switch ($path) {
     case '/work/non-conformity/create': (new OperationsController())->createNonConformity(); break;
     case '/work/non-conformity/close': (new OperationsController())->closeNonConformity(); break;
     case '/work/notification/create': (new OperationsController())->createNotification(); break;
+    case '/corrections': (new CorrectionController())->index(); break;
+    case '/work/non-conformity/correction': (new CorrectionController())->submit(); break;
+    case '/work/non-conformity/correction/review': (new CorrectionController())->review(); break;
+    case '/work/non-conformity/evidence': (new CorrectionController())->evidence(); break;
     case '/inspection/photos': (new MediaController())->inspectionPhotos(); break;
     case '/inspection/photo/upload': (new MediaController())->uploadInspectionPhoto(); break;
     case '/inspection/photo': (new MediaController())->photo(); break;
@@ -57,8 +61,6 @@ switch ($path) {
     case '/settings/document': (new SettingsController())->addDocumentType(); break;
     case '/settings/document/update': (new SettingsController())->updateDocumentType(); break;
     case '/settings/severity': (new SettingsController())->saveSeverityRule(); break;
-    case '/work/non-conformity/correction': (new CorrectionController())->submit(); break;
-    case '/work/non-conformity/evidence': (new CorrectionController())->evidence(); break;
     case '/': (new DashboardController())->index(); break;
     default:
         http_response_code(404);
