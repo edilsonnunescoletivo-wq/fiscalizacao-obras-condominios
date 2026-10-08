@@ -69,9 +69,9 @@ if (!$indexStmt->fetch()) {
     throw new RuntimeException('Índice de número de notificação não encontrado após migration 008.');
 }
 
-$uniqueLegacy = $pdo->query("SHOW INDEX FROM notifications WHERE Key_name='number' AND Non_unique=0")->fetch();
+$uniqueLegacy = $pdo->query("SHOW INDEX FROM notifications WHERE Key_name='uq_notification_number'")->fetch();
 if ($uniqueLegacy) {
-    throw new RuntimeException('Índice UNIQUE legado de notifications.number ainda existe.');
+    throw new RuntimeException('Índice UNIQUE legado uq_notification_number ainda existe.');
 }
 
 echo 'OK: ' . count($migrations) . ' migrations aplicadas e estrutura essencial validada.' . PHP_EOL;
