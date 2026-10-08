@@ -91,7 +91,6 @@ Baseline atual:
 - `004_media_invites.sql`
 - `005_completion.sql`
 - `006_condominium_rules.sql`
-- `006_fiscal_settings.sql`
 - `007_fiscal_workflow_rules.sql`
 - `008_notification_sequences.sql`
 - `009_schema_migrations.sql`
