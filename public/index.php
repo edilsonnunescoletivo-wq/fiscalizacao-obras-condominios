@@ -105,6 +105,9 @@ switch ($path) {
     case '/settings/checklist':
         (new SettingsController())->addChecklistItem();
         break;
+    case '/settings/document':
+        (new SettingsController())->addDocumentType();
+        break;
     case '/':
         (new DashboardController())->index();
         break;
