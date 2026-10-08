@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Core\Auth;
 use App\Core\Csrf;
 use App\Core\Database;
+use App\Core\WorkAccess;
 
 final class MediaController
 {
@@ -15,34 +16,6 @@ final class MediaController
             exit;
         }
         return Auth::user();
-    }
-
-    private function canAccessWork(int $workId, int $userId, bool $requireStaff = false): array
-    {
-        $pdo = Database::connection();
-        $stmt = $pdo->prepare('SELECT w.*, c.name condominium_name FROM works w JOIN condominiums c ON c.id=w.condominium_id WHERE w.id=?');
-        $stmt->execute([$workId]);
-        $work = $stmt->fetch();
-        if (!$work) {
-            http_response_code(404);
-            exit('Obra não encontrada.');
-        }
-        $stmt = $pdo->prepare('SELECT r.code FROM condominium_user cu JOIN roles r ON r.id=cu.role_id WHERE cu.condominium_id=? AND cu.user_id=? AND cu.active=1');
-        $stmt->execute([$work['condominium_id'], $userId]);
-        $roles = array_column($stmt->fetchAll(), 'code');
-        if (!$roles) {
-            http_response_code(403);
-            exit('Acesso não autorizado.');
-        }
-        if (in_array('WORK_RESPONSIBLE', $roles, true) && count(array_diff($roles, ['WORK_RESPONSIBLE'])) === 0 && (int)$work['responsible_user_id'] !== $userId) {
-            http_response_code(403);
-            exit('Acesso não autorizado.');
-        }
-        if ($requireStaff && !array_intersect($roles, ['ADMIN','SYNDIC','MANAGER','INSPECTOR'])) {
-            http_response_code(403);
-            exit('Acesso não autorizado.');
-        }
-        return $work;
     }
 
     public function uploadInspectionPhoto(): void
@@ -61,7 +34,7 @@ final class MediaController
             http_response_code(404);
             exit('Fiscalização não encontrada.');
         }
-        $this->canAccessWork($workId, (int)$user['id'], true);
+        WorkAccess::load($workId, (int)$user['id'], true);
         $file = $_FILES['photo'] ?? null;
         if (!$file || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || ($file['size'] ?? 0) > 8 * 1024 * 1024) {
             http_response_code(422);
@@ -105,14 +78,11 @@ final class MediaController
             http_response_code(404);
             exit('Fiscalização não encontrada.');
         }
-        $work = $this->canAccessWork((int)$inspection['work_id'], (int)$user['id']);
+        $work = WorkAccess::load((int)$inspection['work_id'], (int)$user['id']);
         $stmt = $pdo->prepare('SELECT p.*, u.name uploaded_by_name FROM inspection_photos p LEFT JOIN users u ON u.id=p.uploaded_by WHERE p.inspection_id=? ORDER BY p.created_at DESC');
         $stmt->execute([$inspectionId]);
         $photos = $stmt->fetchAll();
-        $stmt = $pdo->prepare('SELECT r.code FROM condominium_user cu JOIN roles r ON r.id=cu.role_id WHERE cu.condominium_id=? AND cu.user_id=? AND cu.active=1');
-        $stmt->execute([$work['condominium_id'], $user['id']]);
-        $roles = array_column($stmt->fetchAll(), 'code');
-        $canUploadPhoto = (bool)array_intersect($roles, ['ADMIN','SYNDIC','MANAGER','INSPECTOR']);
+        $canUploadPhoto = WorkAccess::canInspect($work['_roles']);
         require dirname(__DIR__, 2) . '/resources_inspection_photos.php';
     }
 
@@ -128,16 +98,26 @@ final class MediaController
             http_response_code(404);
             exit('Foto não encontrada.');
         }
-        $this->canAccessWork((int)$photo['work_id'], (int)$user['id']);
-        $path = dirname(__DIR__, 2) . '/' . $photo['stored_path'];
-        if (!is_file($path)) {
+        WorkAccess::load((int)$photo['work_id'], (int)$user['id']);
+
+        $storageRoot = realpath(dirname(__DIR__, 2) . '/storage/uploads/inspections');
+        $path = realpath(dirname(__DIR__, 2) . '/' . ltrim((string)$photo['stored_path'], '/\\'));
+        if ($storageRoot === false || $path === false || !str_starts_with($path, $storageRoot . DIRECTORY_SEPARATOR) || !is_file($path)) {
             http_response_code(404);
             exit('Arquivo não encontrado.');
         }
+
         $mime = (new \finfo(FILEINFO_MIME_TYPE))->file($path);
+        if (!in_array($mime, ['image/jpeg','image/png','image/webp'], true)) {
+            http_response_code(415);
+            exit('Tipo de arquivo inválido.');
+        }
+
         header('Content-Type: ' . $mime);
         header('Content-Length: ' . filesize($path));
         header('X-Content-Type-Options: nosniff');
+        header('Cache-Control: private, no-store, max-age=0');
         readfile($path);
+        exit;
     }
 }
