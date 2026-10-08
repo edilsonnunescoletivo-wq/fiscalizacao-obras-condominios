@@ -37,64 +37,20 @@ $statusLabels = [
     </aside>
     <main class="content">
         <header class="topbar">
-            <div>
-                <p class="eyebrow">Condomínio</p>
-                <h1><?= htmlspecialchars($condominium['name']) ?></h1>
-            </div>
-            <?php if ($canCreate): ?>
-                <a class="button primary" href="/works/create?condo=<?= (int)$condominium['id'] ?>">+ Nova obra</a>
-            <?php endif; ?>
+            <div><p class="eyebrow">Condomínio</p><h1><?= htmlspecialchars($condominium['name']) ?></h1></div>
+            <?php if ($canCreate): ?><a class="button primary" href="/works/create?condo=<?= (int)$condominium['id'] ?>">+ Nova obra</a><?php endif; ?>
         </header>
 
-        <?php if (isset($_GET['created'])): ?>
-            <div class="alert success">Obra cadastrada com sucesso.</div>
-        <?php endif; ?>
+        <?php if (isset($_GET['created'])): ?><div class="alert success">Obra cadastrada com sucesso.</div><?php endif; ?>
 
         <section class="panel">
-            <div class="panel-header">
-                <div>
-                    <h2>Obras cadastradas</h2>
-                    <p>Acompanhe situação, unidade e responsáveis.</p>
-                </div>
-            </div>
-
+            <div class="panel-header"><div><h2>Obras cadastradas</h2><p>Acompanhe situação, unidade e responsáveis.</p></div></div>
             <?php if (!$works): ?>
-                <div class="empty-state">
-                    <h3>Nenhuma obra disponível</h3>
-                    <p><?= $canCreate ? 'Cadastre a primeira obra deste condomínio para iniciar o fluxo documental e de fiscalização.' : 'Não há obra vinculada ao seu usuário neste condomínio.' ?></p>
-                    <?php if ($canCreate): ?>
-                        <a class="button primary" href="/works/create?condo=<?= (int)$condominium['id'] ?>">Cadastrar primeira obra</a>
-                    <?php endif; ?>
-                </div>
+                <div class="empty-state"><h3>Nenhuma obra disponível</h3><p><?= $canCreate ? 'Cadastre a primeira obra deste condomínio para iniciar o fluxo documental e de fiscalização.' : 'Não há obra vinculada ao seu usuário neste condomínio.' ?></p><?php if ($canCreate): ?><a class="button primary" href="/works/create?condo=<?= (int)$condominium['id'] ?>">Cadastrar primeira obra</a><?php endif; ?></div>
             <?php else: ?>
-                <div class="table-wrap">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Unidade</th>
-                                <th>Proprietário</th>
-                                <th>Tipo</th>
-                                <th>Empresa</th>
-                                <th>Responsável técnico</th>
-                                <th>Status</th>
-                                <th>Prazo</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                        <?php foreach ($works as $work): ?>
-                            <tr>
-                                <td><strong><?= htmlspecialchars($work['unit']) ?></strong></td>
-                                <td><?= htmlspecialchars($work['owner_name']) ?></td>
-                                <td><?= htmlspecialchars($work['work_type'] ?? '-') ?></td>
-                                <td><?= htmlspecialchars($work['company_name'] ?? '-') ?></td>
-                                <td><?= htmlspecialchars($work['technical_name'] ?? '-') ?></td>
-                                <td><span class="badge"><?= htmlspecialchars($statusLabels[$work['status']] ?? $work['status']) ?></span></td>
-                                <td><?= htmlspecialchars($work['planned_end'] ?? '-') ?></td>
-                            </tr>
-                        <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
+                <div class="table-wrap"><table><thead><tr><th>Unidade</th><th>Proprietário</th><th>Tipo</th><th>Empresa</th><th>Responsável técnico</th><th>Status</th><th>Prazo</th><th></th></tr></thead><tbody>
+                <?php foreach ($works as $work): ?><tr><td><strong><?= htmlspecialchars($work['unit']) ?></strong></td><td><?= htmlspecialchars($work['owner_name']) ?></td><td><?= htmlspecialchars($work['work_type'] ?? '-') ?></td><td><?= htmlspecialchars($work['company_name'] ?? '-') ?></td><td><?= htmlspecialchars($work['technical_name'] ?? '-') ?></td><td><span class="badge"><?= htmlspecialchars($statusLabels[$work['status']] ?? $work['status']) ?></span></td><td><?= htmlspecialchars($work['planned_end'] ?? '-') ?></td><td><a class="table-link" href="/work?id=<?= (int)$work['id'] ?>">Abrir →</a></td></tr><?php endforeach; ?>
+                </tbody></table></div>
             <?php endif; ?>
         </section>
     </main>
