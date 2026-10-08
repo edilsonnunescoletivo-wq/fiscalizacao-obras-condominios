@@ -99,6 +99,14 @@ final class WorkDetailController
             exit('Documento inválido.');
         }
 
+        $pdo = Database::connection();
+        $stmt = $pdo->prepare('SELECT id FROM document_types WHERE id = ? AND active = 1 AND (condominium_id IS NULL OR condominium_id = ?)');
+        $stmt->execute([$typeId, $work['condominium_id']]);
+        if (!$stmt->fetchColumn()) {
+            http_response_code(422);
+            exit('Tipo de documento inválido para este condomínio.');
+        }
+
         $file = $_FILES['document'];
         if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || ($file['size'] ?? 0) > 10 * 1024 * 1024) {
             http_response_code(422);
@@ -112,15 +120,15 @@ final class WorkDetailController
             exit('Formato não permitido. Use PDF, JPG ou PNG.');
         }
 
-        $pdo = Database::connection();
         $stmt = $pdo->prepare('SELECT COALESCE(MAX(version),0)+1 FROM work_documents WHERE work_id = ? AND document_type_id = ?');
         $stmt->execute([$workId, $typeId]);
         $version = (int)$stmt->fetchColumn();
 
         $ext = match ($mime) { 'application/pdf' => 'pdf', 'image/jpeg' => 'jpg', default => 'png' };
         $folder = dirname(__DIR__, 2) . '/storage/uploads/works/' . $workId;
-        if (!is_dir($folder)) {
-            mkdir($folder, 0775, true);
+        if (!is_dir($folder) && !mkdir($folder, 0775, true) && !is_dir($folder)) {
+            http_response_code(500);
+            exit('Não foi possível preparar a pasta de upload.');
         }
         $storedName = bin2hex(random_bytes(16)) . '.' . $ext;
         $fullPath = $folder . '/' . $storedName;
@@ -161,8 +169,12 @@ final class WorkDetailController
         }
 
         $pdo = Database::connection();
-        $stmt = $pdo->prepare('UPDATE work_documents SET status = ?, review_notes = ?, reviewed_by = ?, reviewed_at = NOW() WHERE id = ? AND work_id = ?');
+        $stmt = $pdo->prepare('UPDATE work_documents SET status = ?, review_notes = ?, reviewed_by = ?, reviewed_at = NOW() WHERE id = ? AND work_id = ? AND status = "SUBMITTED"');
         $stmt->execute([$decision, $notes, $user['id'], $documentId, $workId]);
+        if ($stmt->rowCount() !== 1) {
+            http_response_code(422);
+            exit('Documento não está disponível para análise.');
+        }
         if ($decision === 'CORRECTION_REQUIRED' || $decision === 'REJECTED') {
             $pdo->prepare('UPDATE works SET status = "CORRECTION_REQUIRED" WHERE id = ?')->execute([$workId]);
         }
