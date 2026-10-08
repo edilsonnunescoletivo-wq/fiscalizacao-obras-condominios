@@ -196,6 +196,21 @@ final class OperationsController
         exit;
     }
 
+    private function nextNotificationNumber(\PDO $pdo, int $condoId): string
+    {
+        $year = (int)date('Y');
+        $pdo->prepare('INSERT IGNORE INTO notification_sequences(condominium_id,sequence_year,last_number) VALUES(?,?,0)')->execute([$condoId,$year]);
+        $stmt = $pdo->prepare('SELECT last_number FROM notification_sequences WHERE condominium_id=? AND sequence_year=? FOR UPDATE');
+        $stmt->execute([$condoId,$year]);
+        $last = $stmt->fetchColumn();
+        if ($last === false) {
+            throw new \RuntimeException('Não foi possível reservar a numeração da notificação.');
+        }
+        $next = (int)$last + 1;
+        $pdo->prepare('UPDATE notification_sequences SET last_number=? WHERE condominium_id=? AND sequence_year=?')->execute([$next,$condoId,$year]);
+        return str_pad((string)$next,4,'0',STR_PAD_LEFT) . '/' . $year;
+    }
+
     public function createNotification(): void
     {
         $this->requirePost();
@@ -236,12 +251,10 @@ final class OperationsController
 
         $pdo->beginTransaction();
         try {
-            $tmp = 'TMP-' . bin2hex(random_bytes(8));
+            $number = $this->nextNotificationNumber($pdo, (int)$work['condominium_id']);
             $stmt = $pdo->prepare('INSERT INTO notifications (work_id, type, number, reason, body, deadline, status, created_by, issued_at) VALUES (?,?,?,?,?,?,"ISSUED",?,NOW())');
-            $stmt->execute([$workId, $type, $tmp, $reason, $body, $deadline, $user['id']]);
+            $stmt->execute([$workId, $type, $number, $reason, $body, $deadline, $user['id']]);
             $notificationId = (int)$pdo->lastInsertId();
-            $number = str_pad((string)$notificationId, 4, '0', STR_PAD_LEFT) . '/' . date('Y');
-            $pdo->prepare('UPDATE notifications SET number=? WHERE id=?')->execute([$number, $notificationId]);
 
             $nextStatus = match ($type) {
                 'SUSPENSION' => 'SUSPENDED',
@@ -251,6 +264,9 @@ final class OperationsController
             };
             if ($nextStatus !== null) {
                 $pdo->prepare('UPDATE works SET status=? WHERE id=?')->execute([$nextStatus, $workId]);
+            }
+            if ($type === 'RELEASE') {
+                $pdo->prepare('UPDATE notifications SET status="RESOLVED" WHERE work_id=? AND type IN ("SUSPENSION","EMBARGO") AND status IN ("ISSUED","DELIVERED")')->execute([$workId]);
             }
             $pdo->commit();
         } catch (\Throwable $e) {
