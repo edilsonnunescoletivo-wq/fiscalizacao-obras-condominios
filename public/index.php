@@ -11,6 +11,7 @@ use App\Controllers\WorkDetailController;
 use App\Controllers\OperationsController;
 use App\Controllers\MediaController;
 use App\Controllers\AccessController;
+use App\Controllers\NotificationController;
 use App\Controllers\NotificationPdfController;
 use App\Controllers\CompletionController;
 use App\Controllers\CompletionPdfController;
@@ -43,6 +44,7 @@ switch ($path) {
     case '/work/non-conformity/create': (new OperationsController())->createNonConformity(); break;
     case '/work/non-conformity/close': (new OperationsController())->closeNonConformity(); break;
     case '/work/notification/create': (new OperationsController())->createNotification(); break;
+    case '/work/notification/status': (new NotificationController())->updateStatus(); break;
     case '/corrections': (new CorrectionController())->index(); break;
     case '/work/non-conformity/correction': (new CorrectionController())->submit(); break;
     case '/work/non-conformity/correction/review': (new CorrectionController())->review(); break;
