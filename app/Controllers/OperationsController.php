@@ -68,6 +68,10 @@ final class OperationsController
             http_response_code(403);
             exit('Acesso não autorizado');
         }
+        if (!in_array($work['status'], ['IN_PROGRESS','NOTIFIED','SUSPENDED','EMBARGOED'], true)) {
+            http_response_code(422);
+            exit('Fiscalizações operacionais só podem ser registradas após o início da obra.');
+        }
         $stage = trim((string)($_POST['stage'] ?? '')) ?: null;
         $notes = trim((string)($_POST['notes'] ?? '')) ?: null;
         $result = (string)($_POST['result'] ?? 'COMPLIANT');
@@ -100,6 +104,10 @@ final class OperationsController
         if (!array_intersect($work['_roles'], ['ADMIN','SYNDIC','MANAGER','INSPECTOR'])) {
             http_response_code(403);
             exit('Acesso não autorizado');
+        }
+        if (!in_array($work['status'], ['IN_PROGRESS','NOTIFIED','SUSPENDED','EMBARGOED'], true)) {
+            http_response_code(422);
+            exit('Não conformidades operacionais só podem ser registradas após o início da obra.');
         }
         $title = trim((string)($_POST['title'] ?? ''));
         $description = trim((string)($_POST['description'] ?? ''));
@@ -170,6 +178,18 @@ final class OperationsController
         if (in_array($type, ['SUSPENSION','EMBARGO','RELEASE'], true) && !array_intersect($work['_roles'], ['ADMIN','SYNDIC','MANAGER'])) {
             http_response_code(403);
             exit('Este tipo de notificação exige perfil administrativo.');
+        }
+        if (in_array($type, ['SUSPENSION','EMBARGO'], true) && !in_array($work['status'], ['IN_PROGRESS','NOTIFIED'], true)) {
+            http_response_code(422);
+            exit('A obra precisa estar em andamento ou notificada para ser suspensa ou embargada.');
+        }
+        if ($type === 'RELEASE' && !in_array($work['status'], ['SUSPENDED','EMBARGOED','NOTIFIED'], true)) {
+            http_response_code(422);
+            exit('Somente obra suspensa, embargada ou notificada pode ser liberada.');
+        }
+        if (!in_array($type, ['SUSPENSION','EMBARGO','RELEASE'], true) && !in_array($work['status'], ['IN_PROGRESS','NOTIFIED'], true)) {
+            http_response_code(422);
+            exit('Notificações operacionais só podem ser emitidas para obra em andamento ou já notificada.');
         }
 
         $pdo = Database::connection();
