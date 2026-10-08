@@ -2,7 +2,9 @@
 
 namespace App\Controllers;
 
+use App\Core\Audit;
 use App\Core\Auth;
+use App\Core\Csrf;
 use App\Core\Database;
 use App\Core\WorkAccess;
 
@@ -85,5 +87,78 @@ final class ResponsibleController
         $canUpload = in_array('WORK_RESPONSIBLE', $roles, true) || WorkAccess::canInspect($roles);
 
         require dirname(__DIR__, 2) . '/resources_responsible_work.php';
+    }
+
+    public function uploadDocument(): void
+    {
+        $user = $this->requireUser();
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !Csrf::validate($_POST['_token'] ?? null)) {
+            http_response_code(419);
+            exit('Sessão expirada.');
+        }
+
+        $workId = (int)($_POST['work_id'] ?? 0);
+        $typeId = (int)($_POST['document_type_id'] ?? 0);
+        $work = WorkAccess::load($workId, (int)$user['id']);
+        if (!in_array('WORK_RESPONSIBLE', $work['_roles'], true) && !WorkAccess::canInspect($work['_roles'])) {
+            http_response_code(403);
+            exit('Acesso não autorizado.');
+        }
+        if ($typeId <= 0 || empty($_FILES['document']['tmp_name'])) {
+            http_response_code(422);
+            exit('Documento inválido.');
+        }
+
+        $pdo = Database::connection();
+        $stmt = $pdo->prepare('SELECT id FROM document_types WHERE id=? AND active=1 AND (condominium_id IS NULL OR condominium_id=?)');
+        $stmt->execute([$typeId, $work['condominium_id']]);
+        if (!$stmt->fetchColumn()) {
+            http_response_code(422);
+            exit('Tipo de documento inválido para este condomínio.');
+        }
+
+        $file = $_FILES['document'];
+        if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || ($file['size'] ?? 0) > 10 * 1024 * 1024) {
+            http_response_code(422);
+            exit('Arquivo inválido ou maior que 10 MB.');
+        }
+        $mime = (new \finfo(FILEINFO_MIME_TYPE))->file($file['tmp_name']);
+        $allowed = ['application/pdf'=>'pdf','image/jpeg'=>'jpg','image/png'=>'png'];
+        if (!isset($allowed[$mime])) {
+            http_response_code(422);
+            exit('Formato não permitido. Use PDF, JPG ou PNG.');
+        }
+
+        $stmt = $pdo->prepare('SELECT COALESCE(MAX(version),0)+1 FROM work_documents WHERE work_id=? AND document_type_id=?');
+        $stmt->execute([$workId, $typeId]);
+        $version = (int)$stmt->fetchColumn();
+
+        $folder = dirname(__DIR__, 2) . '/storage/uploads/works/' . $workId;
+        if (!is_dir($folder) && !mkdir($folder, 0775, true) && !is_dir($folder)) {
+            http_response_code(500);
+            exit('Não foi possível preparar a pasta de upload.');
+        }
+        $storedName = bin2hex(random_bytes(16)) . '.' . $allowed[$mime];
+        if (!move_uploaded_file($file['tmp_name'], $folder . '/' . $storedName)) {
+            http_response_code(500);
+            exit('Não foi possível salvar o arquivo.');
+        }
+
+        $relative = 'storage/uploads/works/' . $workId . '/' . $storedName;
+        $originalName = basename((string)$file['name']);
+        $stmt = $pdo->prepare('INSERT INTO work_documents(work_id,document_type_id,version,original_name,stored_path,status,uploaded_by) VALUES(?,?,?,?,?,?,?)');
+        $stmt->execute([$workId,$typeId,$version,$originalName,$relative,'SUBMITTED',$user['id']]);
+        $documentId = (int)$pdo->lastInsertId();
+        $pdo->prepare('UPDATE works SET status=CASE WHEN status IN ("WAITING_DOCUMENTS","CORRECTION_REQUIRED") THEN "UNDER_REVIEW" ELSE status END WHERE id=?')->execute([$workId]);
+        $pdo->prepare('INSERT INTO work_events(work_id,user_id,event_type,title,description) VALUES(?,?,?,?,?)')->execute([$workId,$user['id'],'DOCUMENT_UPLOADED','Documento enviado',$originalName.' · versão '.$version]);
+        Audit::log((int)$user['id'], (int)$work['condominium_id'], 'work_document', $documentId, 'UPLOADED', [
+            'work_id'=>$workId,
+            'document_type_id'=>$typeId,
+            'version'=>$version,
+            'original_name'=>$originalName,
+        ]);
+
+        header('Location: /responsible/work?id=' . $workId . '&uploaded=1');
+        exit;
     }
 }
