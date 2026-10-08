@@ -40,8 +40,13 @@ if (!$migrations) {
 }
 
 foreach ($migrations as $migration) {
-    echo 'Executando ' . basename($migration) . PHP_EOL;
+    $name = basename($migration);
+    echo 'Executando ' . $name . PHP_EOL;
     runSqlFile($pdo, $migration);
+    if ($pdo->query("SHOW TABLES LIKE 'schema_migrations'")->fetchColumn()) {
+        $stmt = $pdo->prepare('INSERT IGNORE INTO schema_migrations(migration) VALUES(?)');
+        $stmt->execute([$name]);
+    }
 }
 
 $requiredTables = [
@@ -49,7 +54,7 @@ $requiredTables = [
     'work_events','inspections','inspection_photos','non_conformities','non_conformity_evidence',
     'notifications','notification_sequences','work_access_invites','work_completion_terms',
     'condominium_rules','notification_templates','inspection_checklist_items','severity_action_rules','audit_log',
-    'schema_migrations',
+    'schema_migrations','password_setup_tokens',
 ];
 
 $present = $pdo->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);
@@ -63,6 +68,11 @@ foreach (['ADMIN','SYNDIC','MANAGER','INSPECTOR','WORK_RESPONSIBLE','VIEWER'] as
     if (!in_array($role, $roles, true)) {
         throw new RuntimeException('Perfil ausente: ' . $role);
     }
+}
+
+$superAdminColumn = $pdo->query("SHOW COLUMNS FROM users LIKE 'is_super_admin'")->fetch();
+if (!$superAdminColumn) {
+    throw new RuntimeException('Coluna users.is_super_admin ausente após migration 010.');
 }
 
 $indexStmt = $pdo->query("SHOW INDEX FROM notifications WHERE Key_name='idx_notifications_number'");
@@ -82,8 +92,9 @@ if ($missingHistory) {
     throw new RuntimeException('Migrations sem histórico: ' . implode(', ', $missingHistory));
 }
 
-if (count($recordedMigrations) !== count($expectedMigrations)) {
-    throw new RuntimeException('Histórico de migrations possui quantidade inesperada de registros.');
+$extraHistory = array_values(array_diff($recordedMigrations, $expectedMigrations));
+if ($extraHistory) {
+    throw new RuntimeException('Histórico contém migrations inexistentes: ' . implode(', ', $extraHistory));
 }
 
 echo 'OK: ' . count($migrations) . ' migrations aplicadas, registradas e estrutura essencial validada.' . PHP_EOL;
