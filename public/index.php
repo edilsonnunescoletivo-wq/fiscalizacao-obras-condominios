@@ -22,12 +22,14 @@ use App\Controllers\CorrectionController;
 use App\Controllers\InspectionFormController;
 use App\Controllers\DocumentController;
 use App\Controllers\ResponsibleController;
+use App\Controllers\PasswordSetupController;
 
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 
 switch ($path) {
     case '/login': (new AuthController())->login(); break;
     case '/logout': (new AuthController())->logout(); break;
+    case '/setup-password': (new PasswordSetupController())->show(); break;
     case '/responsible': (new ResponsibleController())->index(); break;
     case '/responsible/work': (new ResponsibleController())->work(); break;
     case '/responsible/document/upload': (new ResponsibleController())->uploadDocument(); break;
