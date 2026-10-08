@@ -1,0 +1,15 @@
+{
+  "name": "edilsonnunescoletivo/fiscalizacao-obras-condominios",
+  "description": "Sistema multi-condominio para controle e fiscalizacao de obras.",
+  "type": "project",
+  "require": {
+    "php": ">=8.1",
+    "ext-pdo": "*",
+    "ext-json": "*"
+  },
+  "autoload": {
+    "psr-4": {
+      "App\\": "app/"
+    }
+  }
+}
