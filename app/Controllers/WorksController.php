@@ -17,19 +17,24 @@ final class WorksController
         return Auth::user();
     }
 
-    private function canAccessCondo(int $condoId, int $userId): bool
+    private function rolesForCondo(int $condoId, int $userId): array
     {
         $pdo = Database::connection();
-        $stmt = $pdo->prepare('SELECT 1 FROM condominium_user WHERE condominium_id = ? AND user_id = ? AND active = 1 LIMIT 1');
+        $stmt = $pdo->prepare(
+            'SELECT r.code FROM condominium_user cu
+             JOIN roles r ON r.id = cu.role_id
+             WHERE cu.condominium_id = ? AND cu.user_id = ? AND cu.active = 1'
+        );
         $stmt->execute([$condoId, $userId]);
-        return (bool) $stmt->fetchColumn();
+        return array_column($stmt->fetchAll(), 'code');
     }
 
     public function index(): void
     {
         $user = $this->requireAuth();
         $condoId = (int)($_GET['condo'] ?? 0);
-        if ($condoId <= 0 || !$this->canAccessCondo($condoId, (int)$user['id'])) {
+        $roles = $this->rolesForCondo($condoId, (int)$user['id']);
+        if ($condoId <= 0 || !$roles) {
             http_response_code(403);
             exit('Acesso não autorizado');
         }
@@ -43,10 +48,18 @@ final class WorksController
             exit('Condomínio não encontrado');
         }
 
-        $stmt = $pdo->prepare('SELECT id, unit, owner_name, company_name, technical_name, work_type, planned_start, planned_end, status FROM works WHERE condominium_id = ? ORDER BY created_at DESC');
-        $stmt->execute([$condoId]);
+        $baseSql = 'SELECT id, unit, owner_name, company_name, technical_name, work_type, planned_start, planned_end, status FROM works WHERE condominium_id = ?';
+        $params = [$condoId];
+        if (in_array('WORK_RESPONSIBLE', $roles, true) && count(array_diff($roles, ['WORK_RESPONSIBLE'])) === 0) {
+            $baseSql .= ' AND responsible_user_id = ?';
+            $params[] = $user['id'];
+        }
+        $baseSql .= ' ORDER BY created_at DESC';
+        $stmt = $pdo->prepare($baseSql);
+        $stmt->execute($params);
         $works = $stmt->fetchAll();
 
+        $canCreate = (bool) array_intersect($roles, ['ADMIN','SYNDIC','MANAGER','INSPECTOR']);
         require dirname(__DIR__, 2) . '/resources_works.php';
     }
 
@@ -54,7 +67,9 @@ final class WorksController
     {
         $user = $this->requireAuth();
         $condoId = (int)($_GET['condo'] ?? $_POST['condominium_id'] ?? 0);
-        if ($condoId <= 0 || !$this->canAccessCondo($condoId, (int)$user['id'])) {
+        $roles = $this->rolesForCondo($condoId, (int)$user['id']);
+        $canCreate = (bool) array_intersect($roles, ['ADMIN','SYNDIC','MANAGER','INSPECTOR']);
+        if ($condoId <= 0 || !$canCreate) {
             http_response_code(403);
             exit('Acesso não autorizado');
         }
@@ -70,7 +85,10 @@ final class WorksController
 
         $error = null;
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            Csrf::validate($_POST['_token'] ?? '');
+            if (!Csrf::validate($_POST['_token'] ?? null)) {
+                http_response_code(419);
+                exit('Sessão expirada. Atualize a página e tente novamente.');
+            }
 
             $required = ['unit','owner_name','work_type'];
             foreach ($required as $field) {
