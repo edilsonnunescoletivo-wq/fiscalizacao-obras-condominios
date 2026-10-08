@@ -10,31 +10,39 @@ Sistema web multi-condomínio para controlar o ciclo completo de obras, desde do
 - PDO
 - Hospedagem alvo: Locaweb
 
-## Implementado na base inicial
+## Implementado
 
-- autenticação com sessão;
-- proteção CSRF;
+- autenticação com sessão e proteção CSRF;
 - acesso ao banco via PDO;
 - dashboard multi-condomínio;
 - perfis e vínculos por condomínio;
-- listagem de obras por condomínio;
-- cadastro de nova obra;
-- cadastro de proprietário, empresa executora e responsável técnico;
-- tipo, descrição e período previsto da obra;
-- status inicial `WAITING_DOCUMENTS` após cadastro;
+- listagem e cadastro de obras;
+- proprietário, empresa executora e responsável técnico;
 - restrição do Responsável da Obra às obras vinculadas ao seu usuário;
-- estrutura de documentos versionados, fiscalizações, notificações e auditoria;
+- tela de detalhes da obra;
+- documentos obrigatórios configuráveis;
+- upload de PDF/JPG/PNG com limite de 10 MB;
+- versionamento de documentos;
+- análise do fiscal com aprovação, correção ou reprovação;
+- bloqueio da aprovação técnica enquanto houver documento obrigatório pendente;
+- aprovação técnica, autorização administrativa e início da obra;
+- histórico/linha do tempo da obra;
+- estrutura de fiscalizações, notificações e auditoria;
 - interface responsiva para desktop e celular.
 
 ## Fluxo atual
 
-1. O usuário entra no painel geral.
-2. Seleciona um condomínio.
-3. Visualiza as obras do empreendimento.
-4. Administrador, Síndico, Gerente e Fiscal podem cadastrar uma nova obra.
-5. A nova obra entra em `WAITING_DOCUMENTS`.
-6. O Responsável da Obra visualiza apenas registros vinculados ao seu usuário.
+1. Usuário entra no painel geral e seleciona um condomínio.
+2. Visualiza as obras do empreendimento.
+3. Perfis autorizados cadastram uma nova obra.
+4. A obra entra em `WAITING_DOCUMENTS`.
+5. Documentos são enviados e versionados.
+6. O fiscal aprova, solicita correção ou reprova cada documento.
+7. Com todos os documentos obrigatórios aprovados, a obra pode ir para `TECHNICALLY_APPROVED`.
+8. Síndico/Gerente/Administrador pode autorizar a obra (`AUTHORIZED`).
+9. O início é registrado como `IN_PROGRESS`.
+10. Todas as movimentações relevantes ficam registradas na linha do tempo.
 
 ## Segurança
 
-Nunca comite `.env`, senhas, credenciais da Locaweb, dados reais de condomínio ou segredos de implantação no repositório.
+Nunca comite `.env`, senhas, credenciais da Locaweb, dados reais de condomínio ou segredos de implantação no repositório. Os uploads são armazenados fora da pasta pública da aplicação.
