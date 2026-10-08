@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Core\Auth;
 use App\Core\Database;
+use App\Core\WorkAccess;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 
@@ -20,9 +21,9 @@ final class CompletionPdfController
         $stmt->execute([$workId]);
         $row = $stmt->fetch();
         if (!$row) { http_response_code(404); exit('Termo de conclusão não disponível.'); }
-        $stmt = $pdo->prepare('SELECT 1 FROM condominium_user WHERE condominium_id=? AND user_id=? AND active=1 LIMIT 1');
-        $stmt->execute([$row['condominium_id'],$user['id']]);
-        if (!$stmt->fetchColumn()) { http_response_code(403); exit('Acesso não autorizado.'); }
+
+        WorkAccess::load($workId, (int)$user['id']);
+
         $date = $row['completed_at'] ? date('d/m/Y H:i', strtotime($row['completed_at'])) : date('d/m/Y H:i');
         $html = '<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:DejaVu Sans,sans-serif;color:#222;font-size:12px;line-height:1.55}h1{text-align:center;font-size:20px;margin:25px 0 4px}.meta{text-align:center;color:#666;margin-bottom:24px}.box{border:1px solid #bbb;padding:12px;margin:12px 0}.label{font-size:10px;color:#666;text-transform:uppercase}.value{font-size:13px;margin:3px 0 10px}.footer{margin-top:45px;border-top:1px solid #bbb;padding-top:12px;color:#555}</style></head><body>';
         $html .= '<h1>Termo de Conclusão da Obra</h1><div class="meta">Conclusão registrada em '.$date.'</div>';
