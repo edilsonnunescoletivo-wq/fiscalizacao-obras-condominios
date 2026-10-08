@@ -15,7 +15,16 @@ final class DashboardController
         }
 
         $pdo = Database::connection();
-        $userId = Auth::user()['id'];
+        $userId = (int)Auth::user()['id'];
+
+        $roleStmt = $pdo->prepare('SELECT DISTINCT r.code FROM condominium_user cu JOIN roles r ON r.id=cu.role_id WHERE cu.user_id=? AND cu.active=1');
+        $roleStmt->execute([$userId]);
+        $userRoles = array_column($roleStmt->fetchAll(), 'code');
+        if ($userRoles && count(array_diff($userRoles, ['WORK_RESPONSIBLE'])) === 0) {
+            header('Location: /responsible');
+            exit;
+        }
+
         $stmt = $pdo->prepare(
             'SELECT c.id, c.name,
                 COUNT(DISTINCT w.id) total_works,
