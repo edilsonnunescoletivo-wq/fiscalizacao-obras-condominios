@@ -4,8 +4,21 @@ namespace App\Core;
 
 final class WorkAccess
 {
+    public static function isSuperAdmin(int $userId): bool
+    {
+        $pdo = Database::connection();
+        $stmt = $pdo->prepare('SELECT is_super_admin FROM users WHERE id=? AND active=1 LIMIT 1');
+        $stmt->execute([$userId]);
+        return (int)$stmt->fetchColumn() === 1;
+    }
+
     public static function rolesForCondo(int $condominiumId, int $userId): array
     {
+        if ($condominiumId <= 0) return [];
+        if (self::isSuperAdmin($userId)) {
+            return ['SUPER_ADMIN', 'ADMIN'];
+        }
+
         $pdo = Database::connection();
         $stmt = $pdo->prepare(
             'SELECT r.code
@@ -48,7 +61,7 @@ final class WorkAccess
             exit('Acesso não autorizado.');
         }
 
-        if ($requireStaff && !array_intersect($roles, ['ADMIN', 'SYNDIC', 'MANAGER', 'INSPECTOR'])) {
+        if ($requireStaff && !array_intersect($roles, ['SUPER_ADMIN', 'ADMIN', 'SYNDIC', 'MANAGER', 'INSPECTOR'])) {
             http_response_code(403);
             exit('Acesso não autorizado.');
         }
@@ -60,11 +73,11 @@ final class WorkAccess
 
     public static function canManage(array $roles): bool
     {
-        return (bool)array_intersect($roles, ['ADMIN', 'SYNDIC', 'MANAGER']);
+        return (bool)array_intersect($roles, ['SUPER_ADMIN', 'ADMIN', 'SYNDIC', 'MANAGER']);
     }
 
     public static function canInspect(array $roles): bool
     {
-        return (bool)array_intersect($roles, ['ADMIN', 'SYNDIC', 'MANAGER', 'INSPECTOR']);
+        return (bool)array_intersect($roles, ['SUPER_ADMIN', 'ADMIN', 'SYNDIC', 'MANAGER', 'INSPECTOR']);
     }
 }
