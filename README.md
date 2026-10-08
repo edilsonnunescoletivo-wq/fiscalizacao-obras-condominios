@@ -26,8 +26,11 @@ Sistema web multi-condomínio para controlar o ciclo completo de obras, desde do
 - análise do fiscal com aprovação, correção ou reprovação;
 - bloqueio da aprovação técnica enquanto houver documento obrigatório pendente;
 - aprovação técnica, autorização administrativa e início da obra;
-- histórico/linha do tempo da obra;
-- estrutura de fiscalizações, notificações e auditoria;
+- fiscalizações com etapa, resultado, observações e checklist;
+- não conformidades com gravidade, prazo e encerramento;
+- notificações numeradas de irregularidade, advertência e adequação;
+- suspensão, embargo e liberação com controle de perfil e status;
+- histórico/linha do tempo unificado;
 - interface responsiva para desktop e celular.
 
 ## Fluxo atual
@@ -41,7 +44,18 @@ Sistema web multi-condomínio para controlar o ciclo completo de obras, desde do
 7. Com todos os documentos obrigatórios aprovados, a obra pode ir para `TECHNICALLY_APPROVED`.
 8. Síndico/Gerente/Administrador pode autorizar a obra (`AUTHORIZED`).
 9. O início é registrado como `IN_PROGRESS`.
-10. Todas as movimentações relevantes ficam registradas na linha do tempo.
+10. Fiscalizações operacionais podem ser registradas.
+11. Irregularidades podem virar não conformidades com prazo de correção.
+12. Notificações podem alterar o estado para `NOTIFIED`, `SUSPENDED` ou `EMBARGOED`.
+13. Após regularização, uma liberação retorna a obra para `IN_PROGRESS`.
+14. Todas as movimentações relevantes ficam registradas na linha do tempo.
+
+## Regras operacionais
+
+- Fiscalização e não conformidade só podem ser registradas após o início da obra.
+- Suspensão e embargo exigem perfil administrativo e obra em andamento ou notificada.
+- Liberação exige perfil administrativo e obra previamente suspensa, embargada ou notificada.
+- Fiscal pode emitir notificações operacionais, mas não suspender, embargar ou liberar.
 
 ## Segurança
 
