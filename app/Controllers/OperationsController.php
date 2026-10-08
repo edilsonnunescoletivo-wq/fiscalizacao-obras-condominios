@@ -93,6 +93,17 @@ final class OperationsController
         $deadline = ($_POST['corrective_deadline'] ?? '') ?: null;
         if ($title === '' || $description === '' || !in_array($severity, ['LOW','MEDIUM','HIGH','CRITICAL'], true)) { http_response_code(422); exit('Preencha os dados da não conformidade.'); }
 
+        $rules = $this->rules((int)$work['condominium_id']);
+        $evidenceFile = $_FILES['nc_photo'] ?? null;
+        $requiresPhoto = !empty($rules['require_photo_on_non_conformity']);
+        if ($requiresPhoto && (!$evidenceFile || ($evidenceFile['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE)) {
+            http_response_code(422);
+            exit('Este condomínio exige foto ao registrar uma não conformidade.');
+        }
+        if ($evidenceFile && ($evidenceFile['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
+            $this->validateNonConformityPhoto($evidenceFile);
+        }
+
         $pdo = Database::connection();
         if ($inspectionId) {
             $stmt = $pdo->prepare('SELECT 1 FROM inspections WHERE id=? AND work_id=?');
@@ -100,18 +111,69 @@ final class OperationsController
             if (!$stmt->fetchColumn()) { http_response_code(422); exit('Fiscalização inválida para esta obra.'); }
         }
 
-        $stmt = $pdo->prepare('INSERT INTO non_conformities (inspection_id, work_id, severity, title, description, corrective_deadline, created_by) VALUES (?,?,?,?,?,?,?)');
-        $stmt->execute([$inspectionId, $workId, $severity, $title, $description, $deadline, $user['id']]);
-        $ncId = (int)$pdo->lastInsertId();
+        $pdo->beginTransaction();
+        $storedEvidencePath = null;
+        try {
+            $stmt = $pdo->prepare('INSERT INTO non_conformities (inspection_id, work_id, severity, title, description, corrective_deadline, created_by) VALUES (?,?,?,?,?,?,?)');
+            $stmt->execute([$inspectionId, $workId, $severity, $title, $description, $deadline, $user['id']]);
+            $ncId = (int)$pdo->lastInsertId();
+
+            $evidenceId = null;
+            if ($evidenceFile && ($evidenceFile['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+                [$evidenceId, $storedEvidencePath] = $this->storeNonConformityPhoto($ncId, $workId, (int)$user['id'], $evidenceFile);
+            }
+
+            $pdo->commit();
+        } catch (\Throwable $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            if ($storedEvidencePath && is_file($storedEvidencePath)) @unlink($storedEvidencePath);
+            throw $e;
+        }
 
         $stmt = $pdo->prepare('SELECT suggested_action FROM severity_action_rules WHERE condominium_id=? AND severity=? AND active=1 LIMIT 1');
         $stmt->execute([$work['condominium_id'],$severity]);
         $suggested = (string)($stmt->fetchColumn() ?: 'NONE');
         $actionLabels=['NONE'=>'Nenhuma ação automática','WARNING'=>'Sugerir advertência','ADJUSTMENT'=>'Sugerir adequação','SUSPENSION'=>'Sugerir suspensão','EMBARGO'=>'Sugerir embargo'];
         $this->event($workId, (int)$user['id'], 'NON_CONFORMITY_CREATED', 'Não conformidade registrada', $title . ' · ' . $severity . ' · ' . ($actionLabels[$suggested] ?? $suggested));
-        Audit::log((int)$user['id'], (int)$work['condominium_id'], 'non_conformity', $ncId, 'CREATED', ['work_id'=>$workId,'severity'=>$severity,'suggested_action'=>$suggested,'deadline'=>$deadline]);
+        Audit::log((int)$user['id'], (int)$work['condominium_id'], 'non_conformity', $ncId, 'CREATED', [
+            'work_id'=>$workId,'severity'=>$severity,'suggested_action'=>$suggested,'deadline'=>$deadline,
+            'evidence_id'=>$evidenceId ?? null,'photo_required'=>$requiresPhoto,
+        ]);
         header('Location: /work?id=' . $workId . '&nc=1&suggested=' . rawurlencode($suggested));
         exit;
+    }
+
+    private function validateNonConformityPhoto(array $file): void
+    {
+        if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || ($file['size'] ?? 0) > 10 * 1024 * 1024) {
+            http_response_code(422);
+            exit('Foto inválida ou maior que 10 MB.');
+        }
+        $mime = (new \finfo(FILEINFO_MIME_TYPE))->file($file['tmp_name']);
+        if (!in_array($mime, ['image/jpeg','image/png'], true)) {
+            http_response_code(422);
+            exit('A evidência inicial da não conformidade deve ser JPG ou PNG.');
+        }
+    }
+
+    private function storeNonConformityPhoto(int $ncId, int $workId, int $userId, array $file): array
+    {
+        $this->validateNonConformityPhoto($file);
+        $mime = (new \finfo(FILEINFO_MIME_TYPE))->file($file['tmp_name']);
+        $ext = $mime === 'image/jpeg' ? 'jpg' : 'png';
+        $folder = dirname(__DIR__,2) . '/storage/uploads/corrections/' . $ncId;
+        if (!is_dir($folder) && !mkdir($folder,0775,true) && !is_dir($folder)) {
+            throw new \RuntimeException('Falha ao preparar armazenamento da evidência.');
+        }
+        $name = bin2hex(random_bytes(16)) . '.' . $ext;
+        $fullPath = $folder . '/' . $name;
+        if (!move_uploaded_file($file['tmp_name'], $fullPath)) {
+            throw new \RuntimeException('Falha ao salvar a foto da não conformidade.');
+        }
+        $relative = 'storage/uploads/corrections/' . $ncId . '/' . $name;
+        $stmt = Database::connection()->prepare('INSERT INTO non_conformity_evidence(non_conformity_id,work_id,original_name,stored_path,mime_type,caption,uploaded_by) VALUES(?,?,?,?,?,?,?)');
+        $stmt->execute([$ncId,$workId,basename((string)$file['name']),$relative,$mime,'Registro inicial da não conformidade',$userId]);
+        return [(int)Database::connection()->lastInsertId(), $fullPath];
     }
 
     public function closeNonConformity(): void
