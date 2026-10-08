@@ -1,3 +1,4 @@
+<?php use App\Core\Csrf; ?>
 <!doctype html>
 <html lang="pt-BR">
 <head>
@@ -9,7 +10,7 @@
 <body>
 <header class="topbar public-topbar">
     <div><strong>Fiscalização de Obras</strong><small>Painel multi-condomínio</small></div>
-    <div><?= htmlspecialchars($user['name']) ?> · <a href="/logout">Sair</a></div>
+    <div class="inline-actions"><span><?= htmlspecialchars($user['name']) ?></span><form method="post" action="/logout"><input type="hidden" name="_token" value="<?=htmlspecialchars(Csrf::token())?>"><button class="button secondary" type="submit">Sair</button></form></div>
 </header>
 <main class="container">
     <section class="hero">
