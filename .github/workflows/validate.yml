@@ -1,0 +1,48 @@
+name: Validar Fiscalizacao de Obras
+
+on:
+  push:
+    branches:
+      - feature/base-inicial-20261008
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  php-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql, mbstring, dom, fileinfo
+          tools: composer:v2
+
+      - name: Validar composer.json
+        run: composer validate --no-check-publish
+
+      - name: Instalar dependencias
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Validar sintaxe PHP
+        shell: bash
+        run: |
+          set -euo pipefail
+          find app config public -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+          find . -maxdepth 1 -type f -name 'resources*.php' -print0 | xargs -0 -n1 php -l
+
+      - name: Conferir migrations
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f database/migrations/001_initial.sql
+          count=$(find database/migrations -maxdepth 1 -type f -name '*.sql' | wc -l)
+          test "$count" -ge 7
+          echo "Migrations encontradas: $count"
