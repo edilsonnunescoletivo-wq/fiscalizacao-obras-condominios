@@ -1,3 +1,8 @@
+<?php
+$sidebarCondoId=(int)$condominium['id'];
+$sidebarRoles=$roles??[];
+$sidebarActive='works';
+?>
 <!doctype html>
 <html lang="pt-BR">
 <head>
@@ -5,24 +10,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Nova obra - <?= htmlspecialchars($condominium['name']) ?></title>
     <link rel="stylesheet" href="/assets/css/app.css">
+    <link rel="stylesheet" href="/assets/css/ui-v2.css">
 </head>
 <body class="app-body">
 <div class="shell">
-    <aside class="sidebar">
-        <div class="brand">Fiscaliza Obras</div>
-        <nav>
-            <a href="/">Visão geral</a>
-            <a class="active" href="/works?condo=<?= (int)$condominium['id'] ?>">Obras</a>
-            <a href="#">Fiscalizações</a>
-            <a href="#">Notificações</a>
-            <a href="#">Relatórios</a>
-        </nav>
-    </aside>
+    <?php require __DIR__ . '/resources_sidebar.php'; ?>
     <main class="content">
         <header class="topbar">
             <div>
                 <p class="eyebrow">Nova obra</p>
                 <h1><?= htmlspecialchars($condominium['name']) ?></h1>
+                <p class="muted">Cadastre os dados da obra. A foto de capa poderá ser adicionada no card logo após salvar.</p>
             </div>
             <a class="button secondary" href="/works?condo=<?= (int)$condominium['id'] ?>">Voltar</a>
         </header>
