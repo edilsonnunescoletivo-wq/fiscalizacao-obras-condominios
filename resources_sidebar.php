@@ -42,6 +42,9 @@ if (!function_exists('sidebarClass')) {
             <a class="<?=sidebarClass('inspections',$sidebarActive)?>" href="/condominium/inspections?condo=<?=$sidebarCondoId?>">Fiscalizações</a>
             <a class="<?=sidebarClass('corrections',$sidebarActive)?>" href="/condominium/non-conformities?condo=<?=$sidebarCondoId?>">Não conformidades / Correções</a>
             <a class="<?=sidebarClass('notifications',$sidebarActive)?>" href="/condominium/notifications?condo=<?=$sidebarCondoId?>">Notificações</a>
+            <?php if($sidebarCanManage): ?>
+                <a class="<?=sidebarClass('checklist-preset',$sidebarActive)?>" href="/settings/checklist-preset?condo=<?=$sidebarCondoId?>">Checklist padrão</a>
+            <?php endif; ?>
         </div>
         <?php endif; ?>
 
