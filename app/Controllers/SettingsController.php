@@ -6,6 +6,7 @@ use App\Core\Audit;
 use App\Core\Auth;
 use App\Core\Csrf;
 use App\Core\Database;
+use App\Core\WorkAccess;
 
 final class SettingsController
 {
@@ -17,14 +18,16 @@ final class SettingsController
 
     private function requireCondoAccess(int $condoId, array $user): array
     {
+        if ($condoId <= 0) { http_response_code(404); exit('Condomínio não encontrado.'); }
+        $roles = WorkAccess::rolesForCondo($condoId, (int)$user['id']);
+        if (!WorkAccess::canInspect($roles)) { http_response_code(403); exit('Perfil sem acesso às configurações.'); }
+
         $pdo = Database::connection();
-        $stmt = $pdo->prepare('SELECT c.*, GROUP_CONCAT(r.code) role_codes FROM condominiums c JOIN condominium_user cu ON cu.condominium_id=c.id JOIN roles r ON r.id=cu.role_id WHERE c.id=? AND cu.user_id=? AND cu.active=1 GROUP BY c.id');
-        $stmt->execute([$condoId,$user['id']]);
+        $stmt = $pdo->prepare('SELECT * FROM condominiums WHERE id=? AND active=1');
+        $stmt->execute([$condoId]);
         $condo = $stmt->fetch();
-        if (!$condo) { http_response_code(403); exit('Acesso não autorizado.'); }
-        $roles = array_filter(explode(',', (string)$condo['role_codes']));
-        if (!array_intersect($roles,['ADMIN','SYNDIC','MANAGER','INSPECTOR'])) { http_response_code(403); exit('Perfil sem acesso às configurações.'); }
-        $condo['_roles']=$roles;
+        if (!$condo) { http_response_code(404); exit('Condomínio não encontrado.'); }
+        $condo['_roles'] = $roles;
         return $condo;
     }
 
