@@ -74,7 +74,7 @@ switch ($path) {
     case '/work/document/upload': (new WorkDetailController())->uploadDocument(); break;
     case '/work/document/review': (new WorkDetailController())->reviewDocument(); break;
     case '/work/transition': (new WorkDetailController())->transition(); break;
-    case '/work/inspection/create': (new OperationsController())->createInspection(); break;
+    case '/work/inspection/create': (new InspectionFormController())->create(); break;
     case '/inspection/new': (new InspectionFormController())->show(); break;
     case '/inspection/create-dynamic': (new InspectionFormController())->create(); break;
     case '/work/non-conformity/create': (new OperationsController())->createNonConformity(); break;
