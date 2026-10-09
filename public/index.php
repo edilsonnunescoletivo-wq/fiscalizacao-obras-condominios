@@ -18,6 +18,7 @@ use App\Controllers\CompletionPdfController;
 use App\Controllers\DossierPdfController;
 use App\Controllers\ReportsController;
 use App\Controllers\SettingsController;
+use App\Controllers\ChecklistPresetController;
 use App\Controllers\CorrectionController;
 use App\Controllers\InspectionFormController;
 use App\Controllers\DocumentController;
@@ -87,6 +88,7 @@ switch ($path) {
     case '/settings/template': (new SettingsController())->saveTemplate(); break;
     case '/settings/checklist': (new SettingsController())->addChecklistItem(); break;
     case '/settings/checklist/update': (new SettingsController())->updateChecklistItem(); break;
+    case '/settings/checklist/preset': (new ChecklistPresetController())->apply(); break;
     case '/settings/document': (new SettingsController())->addDocumentType(); break;
     case '/settings/document/update': (new SettingsController())->updateDocumentType(); break;
     case '/settings/severity': (new SettingsController())->saveSeverityRule(); break;
