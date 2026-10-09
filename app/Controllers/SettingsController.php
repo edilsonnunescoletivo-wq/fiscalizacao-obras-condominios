@@ -20,7 +20,7 @@ final class SettingsController
     {
         if ($condoId <= 0) { http_response_code(404); exit('Condomínio não encontrado.'); }
         $roles = WorkAccess::rolesForCondo($condoId, (int)$user['id']);
-        if (!WorkAccess::canInspect($roles)) { http_response_code(403); exit('Perfil sem acesso às configurações.'); }
+        if (!WorkAccess::canManage($roles)) { http_response_code(403); exit('Apenas perfis de gestão podem alterar configurações do condomínio.'); }
 
         $pdo = Database::connection();
         $stmt = $pdo->prepare('SELECT * FROM condominiums WHERE id=? AND active=1');
