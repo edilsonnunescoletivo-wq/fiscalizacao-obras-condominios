@@ -45,6 +45,10 @@ if (in_array($path, $managementSettingsPaths, true)) {
     $condoId = (int)($_GET['condo'] ?? $_POST['condo_id'] ?? 0);
     $roles = WorkAccess::rolesForCondo($condoId, (int)(Auth::user()['id'] ?? 0));
     if ($condoId <= 0 || !WorkAccess::canManage($roles)) {
+        if ($path === '/settings' && $_SERVER['REQUEST_METHOD'] === 'GET' && $condoId > 0 && WorkAccess::canInspect($roles)) {
+            header('Location: /fiscal-panel?condo=' . $condoId);
+            exit;
+        }
         http_response_code(403);
         exit('Apenas perfis de gestão podem alterar configurações do condomínio.');
     }
