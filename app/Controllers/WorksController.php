@@ -30,7 +30,7 @@ final class WorksController
         }
 
         $pdo = Database::connection();
-        $stmt = $pdo->prepare('SELECT id, name FROM condominiums WHERE id = ? AND active = 1');
+        $stmt = $pdo->prepare('SELECT id, name, photo_path FROM condominiums WHERE id = ? AND active = 1');
         $stmt->execute([$condoId]);
         $condominium = $stmt->fetch();
         if (!$condominium) {
@@ -38,18 +38,51 @@ final class WorksController
             exit('Condomínio não encontrado');
         }
 
-        $baseSql = 'SELECT id, unit, owner_name, company_name, technical_name, work_type, planned_start, planned_end, status FROM works WHERE condominium_id = ?';
+        $statusFilter = trim((string)($_GET['status'] ?? ''));
+        $query = trim((string)($_GET['q'] ?? ''));
+        $validStatuses = ['DRAFT','WAITING_DOCUMENTS','UNDER_REVIEW','CORRECTION_REQUIRED','TECHNICALLY_APPROVED','AUTHORIZED','IN_PROGRESS','NOTIFIED','SUSPENDED','EMBARGOED','COMPLETION_INSPECTION','COMPLETED','CANCELLED'];
+        if ($statusFilter !== '' && !in_array($statusFilter, $validStatuses, true)) {
+            $statusFilter = '';
+        }
+
+        $baseSql = 'SELECT w.id, w.unit, w.owner_name, w.company_name, w.technical_name, w.work_type, w.planned_start, w.planned_end, w.status, w.cover_photo_path,
+            (SELECT COUNT(*) FROM non_conformities nc WHERE nc.work_id=w.id AND nc.status <> "CLOSED") pending_count,
+            (SELECT COUNT(*) FROM inspections i WHERE i.work_id=w.id) inspections_count,
+            (SELECT COUNT(*) FROM notifications n WHERE n.work_id=w.id) notifications_count
+            FROM works w WHERE w.condominium_id = ?';
         $params = [$condoId];
+
         if (in_array('WORK_RESPONSIBLE', $roles, true) && count(array_diff($roles, ['WORK_RESPONSIBLE'])) === 0) {
-            $baseSql .= ' AND responsible_user_id = ?';
+            $baseSql .= ' AND w.responsible_user_id = ?';
             $params[] = $user['id'];
         }
-        $baseSql .= ' ORDER BY created_at DESC';
+        if ($statusFilter !== '') {
+            $baseSql .= ' AND w.status = ?';
+            $params[] = $statusFilter;
+        }
+        if ($query !== '') {
+            $baseSql .= ' AND (w.unit LIKE ? OR w.owner_name LIKE ? OR COALESCE(w.company_name,"") LIKE ? OR COALESCE(w.technical_name,"") LIKE ?)';
+            $like = '%' . $query . '%';
+            array_push($params, $like, $like, $like, $like);
+        }
+
+        $baseSql .= ' ORDER BY w.created_at DESC';
         $stmt = $pdo->prepare($baseSql);
         $stmt->execute($params);
         $works = $stmt->fetchAll();
 
+        $summaryStmt = $pdo->prepare('SELECT
+            COUNT(*) total,
+            COALESCE(SUM(status="IN_PROGRESS"),0) in_progress,
+            COALESCE(SUM(status="COMPLETED"),0) completed,
+            COALESCE(SUM(status="SUSPENDED"),0) suspended,
+            COALESCE(SUM(status="EMBARGOED"),0) embargoed
+            FROM works WHERE condominium_id=?');
+        $summaryStmt->execute([$condoId]);
+        $summary = $summaryStmt->fetch() ?: ['total'=>0,'in_progress'=>0,'completed'=>0,'suspended'=>0,'embargoed'=>0];
+
         $canCreate = WorkAccess::canInspect($roles);
+        $canManage = WorkAccess::canManage($roles);
         require dirname(__DIR__, 2) . '/resources_works.php';
     }
 
@@ -65,7 +98,7 @@ final class WorksController
         }
 
         $pdo = Database::connection();
-        $stmt = $pdo->prepare('SELECT id, name FROM condominiums WHERE id = ? AND active = 1');
+        $stmt = $pdo->prepare('SELECT id, name, photo_path FROM condominiums WHERE id = ? AND active = 1');
         $stmt->execute([$condoId]);
         $condominium = $stmt->fetch();
         if (!$condominium) {
