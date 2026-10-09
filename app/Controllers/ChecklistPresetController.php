@@ -26,33 +26,68 @@ final class ChecklistPresetController
         ['Encerramento', 'Área comum impactada pela obra está limpa e sem danos aparentes', 0, 130],
     ];
 
-    public function apply(): void
+    private function requireManager(int $condoId): array
     {
         if (!Auth::check()) {
             header('Location: /login');
             exit;
         }
 
+        $user = Auth::user();
+        $roles = WorkAccess::rolesForCondo($condoId, (int)$user['id']);
+        if ($condoId <= 0 || !WorkAccess::canManage($roles)) {
+            http_response_code(403);
+            exit('Apenas perfis de gestão podem administrar o checklist padrão.');
+        }
+
+        $pdo = Database::connection();
+        $stmt = $pdo->prepare('SELECT id, name FROM condominiums WHERE id=? AND active=1');
+        $stmt->execute([$condoId]);
+        $condo = $stmt->fetch();
+        if (!$condo) {
+            http_response_code(404);
+            exit('Condomínio não encontrado.');
+        }
+
+        return [$user, $roles, $condo];
+    }
+
+    public function show(): void
+    {
+        $condoId = (int)($_GET['condo'] ?? 0);
+        [, $roles, $condo] = $this->requireManager($condoId);
+        $pdo = Database::connection();
+
+        $stmt = $pdo->prepare('SELECT COUNT(*) FROM inspection_checklist_items WHERE condominium_id=? AND active=1');
+        $stmt->execute([$condoId]);
+        $activeCount = (int)$stmt->fetchColumn();
+
+        $exists = $pdo->prepare('SELECT COUNT(*) FROM inspection_checklist_items WHERE condominium_id=? AND label=? AND COALESCE(category, "")=?');
+        $missing = 0;
+        foreach (self::ITEMS as [$category, $label]) {
+            $exists->execute([$condoId, $label, $category]);
+            if ((int)$exists->fetchColumn() === 0) {
+                $missing++;
+            }
+        }
+
+        $presetCount = count(self::ITEMS);
+        $sidebarCondoId = $condoId;
+        $sidebarRoles = $roles;
+        $sidebarActive = 'checklist-preset';
+        require dirname(__DIR__, 2) . '/resources_checklist_preset.php';
+    }
+
+    public function apply(): void
+    {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !Csrf::validate($_POST['_token'] ?? null)) {
             http_response_code(419);
             exit('Sessão expirada.');
         }
 
-        $user = Auth::user();
         $condoId = (int)($_POST['condo_id'] ?? 0);
-        $roles = WorkAccess::rolesForCondo($condoId, (int)$user['id']);
-        if ($condoId <= 0 || !WorkAccess::canManage($roles)) {
-            http_response_code(403);
-            exit('Apenas perfis de gestão podem aplicar o checklist padrão.');
-        }
-
+        [$user] = $this->requireManager($condoId);
         $pdo = Database::connection();
-        $stmt = $pdo->prepare('SELECT id FROM condominiums WHERE id=? AND active=1');
-        $stmt->execute([$condoId]);
-        if (!$stmt->fetchColumn()) {
-            http_response_code(404);
-            exit('Condomínio não encontrado.');
-        }
 
         $exists = $pdo->prepare('SELECT id FROM inspection_checklist_items WHERE condominium_id=? AND label=? AND COALESCE(category, "")=? LIMIT 1');
         $insert = $pdo->prepare('INSERT INTO inspection_checklist_items(condominium_id,label,category,required,active,sort_order) VALUES(?,?,?,?,1,?)');
@@ -81,7 +116,7 @@ final class ChecklistPresetController
             'preset_items' => count(self::ITEMS),
         ]);
 
-        header('Location: /settings?condo=' . $condoId . '&checklist_preset=1&added=' . $added . '#checklist');
+        header('Location: /settings/checklist-preset?condo=' . $condoId . '&applied=1&added=' . $added);
         exit;
     }
 }
