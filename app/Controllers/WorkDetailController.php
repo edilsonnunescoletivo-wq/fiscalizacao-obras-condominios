@@ -42,6 +42,17 @@ final class WorkDetailController
         $stmt->execute([$workId, $work['condominium_id']]);
         $documents = $stmt->fetchAll();
 
+        $requiredDocumentCount = 0;
+        $pendingRequiredDocuments = 0;
+        foreach ($documents as $document) {
+            if (!empty($document['required_default'])) {
+                $requiredDocumentCount++;
+                if (($document['status'] ?? null) !== 'APPROVED') {
+                    $pendingRequiredDocuments++;
+                }
+            }
+        }
+
         $stmt = $pdo->prepare('SELECT i.*, u.name inspector_name FROM inspections i JOIN users u ON u.id = i.inspector_user_id WHERE i.work_id = ? ORDER BY i.inspected_at DESC, i.id DESC');
         $stmt->execute([$workId]);
         $inspections = $stmt->fetchAll();
