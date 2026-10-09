@@ -70,9 +70,18 @@ foreach (['ADMIN','SYNDIC','MANAGER','INSPECTOR','WORK_RESPONSIBLE','VIEWER'] as
     }
 }
 
-$superAdminColumn = $pdo->query("SHOW COLUMNS FROM users LIKE 'is_super_admin'")->fetch();
-if (!$superAdminColumn) {
-    throw new RuntimeException('Coluna users.is_super_admin ausente após migration 010.');
+$requiredColumns = [
+    ['users','is_super_admin','migration 010'],
+    ['condominiums','photo_original_name','migration 011'],
+    ['condominiums','photo_path','migration 011'],
+    ['works','cover_photo_original_name','migration 011'],
+    ['works','cover_photo_path','migration 011'],
+];
+foreach ($requiredColumns as [$table,$column,$source]) {
+    $stmt = $pdo->query("SHOW COLUMNS FROM `{$table}` LIKE " . $pdo->quote($column));
+    if (!$stmt->fetch()) {
+        throw new RuntimeException("Coluna {$table}.{$column} ausente após {$source}.");
+    }
 }
 
 $indexStmt = $pdo->query("SHOW INDEX FROM notifications WHERE Key_name='idx_notifications_number'");
