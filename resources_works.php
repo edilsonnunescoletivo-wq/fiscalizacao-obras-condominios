@@ -13,6 +13,7 @@ $sidebarActive='condo';
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Obras - <?=htmlspecialchars($condominium['name'])?></title>
     <link rel="stylesheet" href="/assets/css/app.css">
+    <link rel="stylesheet" href="/assets/css/ui-v2.css">
 </head>
 <body class="app-body">
 <div class="shell">
