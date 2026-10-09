@@ -1,8 +1,15 @@
-<?php use App\Core\Csrf; ?>
+<?php
+use App\Core\Csrf;
+$sidebarCondoId=(int)$work['condominium_id'];
+$sidebarWorkId=(int)$work['id'];
+$sidebarWorkStatus=(string)($work['status']??'');
+$sidebarRoles=$work['_roles']??[];
+$sidebarActive='completion';
+?>
 <!doctype html>
 <html lang="pt-BR">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Conclusão da obra</title><link rel="stylesheet" href="/assets/css/app.css"></head>
-<body class="app-body"><div class="shell"><aside class="sidebar"><div class="brand">Fiscaliza Obras</div><nav><a href="/">Visão geral</a><a href="/works?condo=<?= (int)$work['condominium_id'] ?>">Obras</a><a class="active" href="/work/completion?id=<?= (int)$work['id'] ?>">Conclusão</a><a href="/reports?condo=<?= (int)$work['condominium_id'] ?>">Relatórios</a></nav></aside><main class="content"><header class="topbar"><div><p class="eyebrow"><?= htmlspecialchars($work['condominium_name']) ?></p><h1>Conclusão · Unidade <?= htmlspecialchars($work['unit']) ?></h1><p class="muted">Status atual: <?= htmlspecialchars($work['status']) ?></p></div><a class="button secondary" href="/work?id=<?= (int)$work['id'] ?>">← Voltar à obra</a></header>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Conclusão da obra</title><link rel="stylesheet" href="/assets/css/app.css"><link rel="stylesheet" href="/assets/css/ui-v2.css"></head>
+<body class="app-body"><div class="shell"><?php require __DIR__ . '/resources_sidebar.php'; ?><main class="content"><header class="topbar"><div><p class="eyebrow"><?= htmlspecialchars($work['condominium_name']) ?></p><h1>Conclusão · Unidade <?= htmlspecialchars($work['unit']) ?></h1><p class="muted">Status atual: <?= htmlspecialchars($work['status']) ?></p></div><a class="button secondary" href="/work?id=<?= (int)$work['id'] ?>">← Voltar à obra</a></header>
 <?php if (isset($_GET['started'])): ?><div class="alert success">Vistoria final iniciada.</div><?php endif; ?>
 <?php if (isset($_GET['recorded'])): ?><div class="alert success">Conclusão da obra atualizada.</div><?php endif; ?>
 <section class="panel"><div class="panel-header"><div><h2>Condições para encerramento</h2><p>As regras abaixo vêm do Painel do Fiscal deste condomínio.</p></div></div><div class="info-grid"><div><small>Pendências ainda não encerradas</small><strong><?= (int)$openNc ?></strong></div><div><small>Vistoria final</small><strong><?= $requiresFinalInspection ? 'Obrigatória' : 'Dispensada' ?></strong></div><div><small>Bloqueio por pendência</small><strong><?= $blockWithOpenNc ? 'Ativo' : 'Desativado' ?></strong></div><div><small>Proprietário</small><strong><?= htmlspecialchars($work['owner_name']) ?></strong></div><div><small>Tipo</small><strong><?= htmlspecialchars($work['work_type'] ?: '-') ?></strong></div><div><small>Status</small><strong><?= htmlspecialchars($work['status']) ?></strong></div></div><?php if ($blockedByNc): ?><div class="alert error" style="margin-top:16px">A conclusão está bloqueada porque existem pendências ainda não encerradas.</div><?php endif; ?></section>
