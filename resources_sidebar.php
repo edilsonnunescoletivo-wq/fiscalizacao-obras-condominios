@@ -11,6 +11,7 @@ $sidebarUserId = Auth::check() ? (int)(Auth::user()['id'] ?? 0) : 0;
 $sidebarRoles = $sidebarRoles ?? ($sidebarCondoId > 0 && $sidebarUserId > 0 ? WorkAccess::rolesForCondo($sidebarCondoId, $sidebarUserId) : []);
 $sidebarCanInspect = WorkAccess::canInspect($sidebarRoles);
 $sidebarCanManage = WorkAccess::canManage($sidebarRoles);
+$sidebarCanManageUsers = (bool)array_intersect($sidebarRoles, ['SUPER_ADMIN','ADMIN','SYNDIC']);
 $sidebarIsResponsible = in_array('WORK_RESPONSIBLE', $sidebarRoles, true) && count(array_diff($sidebarRoles, ['WORK_RESPONSIBLE'])) === 0;
 
 if (!function_exists('sidebarClass')) {
@@ -35,32 +36,24 @@ if (!function_exists('sidebarClass')) {
             <?php endif; ?>
         </div>
 
-        <?php if($sidebarCondoId > 0 && ($sidebarCanInspect || $sidebarWorkId > 0)): ?>
+        <?php if($sidebarCondoId > 0 && $sidebarCanInspect): ?>
         <div class="sidebar-group">
             <span class="sidebar-group-title">Fiscalização</span>
-            <?php if($sidebarCanInspect): ?>
-                <a class="<?=sidebarClass('inspections',$sidebarActive)?>" href="<?=$sidebarWorkId > 0 ? '/inspection/new?work='.$sidebarWorkId : '/reports?condo='.$sidebarCondoId?>">Fiscalizações</a>
-            <?php endif; ?>
-            <?php if($sidebarWorkId > 0 || $sidebarCanInspect): ?>
-                <a class="<?=sidebarClass('corrections',$sidebarActive)?>" href="<?=$sidebarWorkId > 0 ? '/corrections?work='.$sidebarWorkId : '/reports?condo='.$sidebarCondoId?>">Não conformidades / Correções</a>
-            <?php endif; ?>
-            <?php if($sidebarCanInspect): ?>
-                <a class="<?=sidebarClass('notifications',$sidebarActive)?>" href="<?=$sidebarWorkId > 0 ? '/notifications?work='.$sidebarWorkId : '/reports?condo='.$sidebarCondoId?>">Notificações</a>
-            <?php endif; ?>
+            <a class="<?=sidebarClass('inspections',$sidebarActive)?>" href="/condominium/inspections?condo=<?=$sidebarCondoId?>">Fiscalizações</a>
+            <a class="<?=sidebarClass('corrections',$sidebarActive)?>" href="/condominium/non-conformities?condo=<?=$sidebarCondoId?>">Não conformidades / Correções</a>
+            <a class="<?=sidebarClass('notifications',$sidebarActive)?>" href="/condominium/notifications?condo=<?=$sidebarCondoId?>">Notificações</a>
         </div>
         <?php endif; ?>
 
         <?php if($sidebarCondoId > 0): ?>
         <div class="sidebar-group">
             <span class="sidebar-group-title">Documentação</span>
-            <a class="<?=sidebarClass('documents',$sidebarActive)?>" href="<?=$sidebarWorkId > 0 ? '/work?id='.$sidebarWorkId.'#documentos' : '/works?condo='.$sidebarCondoId.'#obras'?>">Documentos</a>
             <?php if($sidebarCanInspect): ?>
-                <a class="<?=sidebarClass('completion',$sidebarActive)?>" href="<?=$sidebarWorkId > 0 ? '/work/completion?id='.$sidebarWorkId : '/reports?condo='.$sidebarCondoId.'&status=COMPLETED'?>">Conclusões</a>
-                <?php if($sidebarWorkId > 0 && $sidebarWorkStatus === 'COMPLETED'): ?>
-                    <a class="<?=sidebarClass('dossier',$sidebarActive)?>" target="_blank" href="/work/dossier?id=<?=$sidebarWorkId?>">Dossiê digital</a>
-                <?php else: ?>
-                    <a class="<?=sidebarClass('dossier',$sidebarActive)?>" href="/reports?condo=<?=$sidebarCondoId?>&status=COMPLETED">Dossiês digitais</a>
-                <?php endif; ?>
+                <a class="<?=sidebarClass('documents',$sidebarActive)?>" href="/condominium/documents?condo=<?=$sidebarCondoId?>">Documentos</a>
+                <a class="<?=sidebarClass('completion',$sidebarActive)?>" href="/condominium/completions?condo=<?=$sidebarCondoId?>">Conclusões</a>
+                <a class="<?=sidebarClass('dossier',$sidebarActive)?>" href="/condominium/dossiers?condo=<?=$sidebarCondoId?>">Dossiês digitais</a>
+            <?php elseif($sidebarWorkId > 0): ?>
+                <a class="<?=sidebarClass('documents',$sidebarActive)?>" href="/work?id=<?=$sidebarWorkId?>#documentos">Documentos</a>
             <?php endif; ?>
         </div>
 
@@ -68,8 +61,8 @@ if (!function_exists('sidebarClass')) {
         <div class="sidebar-group">
             <span class="sidebar-group-title">Gestão</span>
             <a class="<?=sidebarClass('reports',$sidebarActive)?>" href="/reports?condo=<?=$sidebarCondoId?>">Relatórios</a>
-            <?php if($sidebarCanManage): ?>
-                <a class="<?=sidebarClass('users',$sidebarActive)?>" href="/settings?condo=<?=$sidebarCondoId?>#acessos">Usuários / Permissões</a>
+            <?php if($sidebarCanManageUsers): ?>
+                <a class="<?=sidebarClass('users',$sidebarActive)?>" href="/users?condo=<?=$sidebarCondoId?>">Usuários / Permissões</a>
             <?php endif; ?>
             <a class="<?=sidebarClass('settings',$sidebarActive)?>" href="/settings?condo=<?=$sidebarCondoId?>">Configurações do condomínio</a>
             <a class="<?=sidebarClass('fiscal',$sidebarActive)?>" href="/settings?condo=<?=$sidebarCondoId?>#fiscalizacao">Painel do Fiscal</a>
