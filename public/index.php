@@ -88,6 +88,7 @@ switch ($path) {
     case '/settings/template': (new SettingsController())->saveTemplate(); break;
     case '/settings/checklist': (new SettingsController())->addChecklistItem(); break;
     case '/settings/checklist/update': (new SettingsController())->updateChecklistItem(); break;
+    case '/settings/checklist-preset': (new ChecklistPresetController())->show(); break;
     case '/settings/checklist/preset': (new ChecklistPresetController())->apply(); break;
     case '/settings/document': (new SettingsController())->addDocumentType(); break;
     case '/settings/document/update': (new SettingsController())->updateDocumentType(); break;
