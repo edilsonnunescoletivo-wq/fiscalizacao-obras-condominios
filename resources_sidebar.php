@@ -64,11 +64,13 @@ if (!function_exists('sidebarClass')) {
         <div class="sidebar-group">
             <span class="sidebar-group-title">Gestão</span>
             <a class="<?=sidebarClass('reports',$sidebarActive)?>" href="/reports?condo=<?=$sidebarCondoId?>">Relatórios</a>
+            <a class="<?=sidebarClass('fiscal',$sidebarActive)?>" href="/fiscal-panel?condo=<?=$sidebarCondoId?>">Painel do Fiscal</a>
             <?php if($sidebarCanManageUsers): ?>
                 <a class="<?=sidebarClass('users',$sidebarActive)?>" href="/users?condo=<?=$sidebarCondoId?>">Usuários / Permissões</a>
             <?php endif; ?>
-            <a class="<?=sidebarClass('settings',$sidebarActive)?>" href="/settings?condo=<?=$sidebarCondoId?>">Configurações do condomínio</a>
-            <a class="<?=sidebarClass('fiscal',$sidebarActive)?>" href="/settings?condo=<?=$sidebarCondoId?>#fiscalizacao">Painel do Fiscal</a>
+            <?php if($sidebarCanManage): ?>
+                <a class="<?=sidebarClass('settings',$sidebarActive)?>" href="/settings?condo=<?=$sidebarCondoId?>">Configurações do condomínio</a>
+            <?php endif; ?>
         </div>
         <?php endif; ?>
         <?php endif; ?>
