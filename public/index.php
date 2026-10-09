@@ -24,6 +24,8 @@ use App\Controllers\DocumentController;
 use App\Controllers\ResponsibleController;
 use App\Controllers\PasswordSetupController;
 use App\Controllers\MaintenanceController;
+use App\Controllers\CondominiumModuleController;
+use App\Controllers\UserAccessController;
 
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 
@@ -37,6 +39,15 @@ switch ($path) {
     case '/responsible/document/upload': (new ResponsibleController())->uploadDocument(); break;
     case '/works': (new WorksController())->index(); break;
     case '/works/create': (new WorksController())->create(); break;
+    case '/condominium/inspections': (new CondominiumModuleController())->inspections(); break;
+    case '/condominium/non-conformities': (new CondominiumModuleController())->nonConformities(); break;
+    case '/condominium/notifications': (new CondominiumModuleController())->notifications(); break;
+    case '/condominium/documents': (new CondominiumModuleController())->documents(); break;
+    case '/condominium/completions': (new CondominiumModuleController())->completions(); break;
+    case '/condominium/dossiers': (new CondominiumModuleController())->dossiers(); break;
+    case '/users': (new UserAccessController())->index(); break;
+    case '/users/access/add': (new UserAccessController())->add(); break;
+    case '/users/access/toggle': (new UserAccessController())->toggle(); break;
     case '/work': (new WorkDetailController())->show(); break;
     case '/work/document': (new DocumentController())->show(); break;
     case '/work/document/upload': (new WorkDetailController())->uploadDocument(); break;
