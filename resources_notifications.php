@@ -2,9 +2,14 @@
 use App\Core\Csrf;
 $typeLabels=['IRREGULARITY'=>'Irregularidade','WARNING'=>'Advertência','ADJUSTMENT'=>'Adequação','SUSPENSION'=>'Suspensão','EMBARGO'=>'Embargo','RELEASE'=>'Liberação'];
 $statusLabels=['DRAFT'=>'Rascunho','ISSUED'=>'Emitida','DELIVERED'=>'Entregue','RESOLVED'=>'Resolvida','CANCELLED'=>'Cancelada'];
+$sidebarCondoId=(int)$work['condominium_id'];
+$sidebarWorkId=(int)$work['id'];
+$sidebarWorkStatus=(string)($work['status']??'');
+$sidebarRoles=$work['_roles']??[];
+$sidebarActive='notifications';
 ?>
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Notificações · Unidade <?=htmlspecialchars($work['unit'])?></title><link rel="stylesheet" href="/assets/css/app.css"></head><body class="app-body"><div class="shell">
-<aside class="sidebar"><div class="brand">Fiscaliza Obras</div><nav><a href="/">Visão geral</a><a href="/works?condo=<?=(int)$work['condominium_id']?>">Obras</a><a href="/work?id=<?=(int)$work['id']?>">Detalhes da obra</a><a class="active" href="/notifications?work=<?=(int)$work['id']?>">Notificações</a></nav></aside>
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Notificações · Unidade <?=htmlspecialchars($work['unit'])?></title><link rel="stylesheet" href="/assets/css/app.css"><link rel="stylesheet" href="/assets/css/ui-v2.css"></head><body class="app-body"><div class="shell">
+<?php require __DIR__ . '/resources_sidebar.php'; ?>
 <main class="content"><header class="topbar"><div><p class="eyebrow"><?=htmlspecialchars($work['condominium_name'])?></p><h1>Notificações · Unidade <?=htmlspecialchars($work['unit'])?></h1><p class="muted">Controle de entrega, resolução e cancelamento dos comunicados formais.</p></div><a class="button secondary" href="/work?id=<?=(int)$work['id']?>">← Voltar à obra</a></header>
 <?php if(isset($_GET['updated'])):?><div class="alert success">Status da notificação atualizado.</div><?php endif;?>
 <section class="panel"><div class="panel-header"><div><h2>Notificações emitidas</h2><p><?=count($notifications)?> registro(s).</p></div></div><div class="operation-list">
