@@ -7,16 +7,22 @@ $severityLabels=['LOW'=>'Leve','MEDIUM'=>'Moderada','HIGH'=>'Grave','CRITICAL'=>
 $notificationLabels=['IRREGULARITY'=>'Irregularidade','WARNING'=>'Advertência','ADJUSTMENT'=>'Adequação','SUSPENSION'=>'Suspensão','EMBARGO'=>'Embargo','RELEASE'=>'Liberação'];
 $inspectionLabels=['COMPLIANT'=>'Conforme','WITH_ISSUES'=>'Com apontamentos','CRITICAL'=>'Crítica'];
 $operational=in_array($work['status'],['IN_PROGRESS','NOTIFIED','SUSPENDED','EMBARGOED'],true);
+$sidebarCondoId=(int)$work['condominium_id'];
+$sidebarWorkId=(int)$work['id'];
+$sidebarWorkStatus=(string)$work['status'];
+$sidebarRoles=$roles;
+$sidebarActive='works';
 ?>
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Obra <?=htmlspecialchars($work['unit'])?></title><link rel="stylesheet" href="/assets/css/app.css"></head>
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Obra <?=htmlspecialchars($work['unit'])?></title><link rel="stylesheet" href="/assets/css/app.css"><link rel="stylesheet" href="/assets/css/ui-v2.css"></head>
 <body class="app-body"><div class="shell">
-<aside class="sidebar"><div class="brand">Fiscaliza Obras</div><nav><a href="/">Visão geral</a><a class="active" href="/works?condo=<?=(int)$work['condominium_id']?>">Obras</a><a href="#documentos">Documentos</a><a href="#fiscalizacoes">Fiscalizações</a><a href="#correcoes">Correções</a><a href="#notificacoes">Notificações</a><a href="#historico">Histórico</a><?php if($canInspect):?><a href="/settings?condo=<?=(int)$work['condominium_id']?>">Painel do Fiscal</a><?php endif;?></nav></aside>
+<?php require __DIR__ . '/resources_sidebar.php'; ?>
 <main class="content">
 <header class="topbar"><div><p class="eyebrow"><?=htmlspecialchars($work['condominium_name'])?></p><h1>Unidade <?=htmlspecialchars($work['unit'])?></h1><p class="muted"><?=htmlspecialchars($work['work_type']?:'Obra')?> · <?=htmlspecialchars($statusLabels[$work['status']]??$work['status'])?></p></div><a class="button secondary" href="/works?condo=<?=(int)$work['condominium_id']?>">← Voltar</a></header>
 
 <?php if(isset($_GET['uploaded'])):?><div class="alert success">Documento enviado com sucesso.</div><?php endif;?>
 <?php if(isset($_GET['reviewed'])):?><div class="alert success">Análise do documento registrada.</div><?php endif;?>
 <?php if(isset($_GET['status'])):?><div class="alert success">Status da obra atualizado.</div><?php endif;?>
+<?php if(isset($_GET['photo'])):?><div class="alert success">Foto da obra atualizada com sucesso.</div><?php endif;?>
 <?php if(isset($_GET['inspection'])):?><div class="alert success">Fiscalização registrada com sucesso.</div><?php endif;?>
 <?php if(isset($_GET['nc'])):?><div class="alert success">Não conformidade registrada. Ação sugerida: <?=htmlspecialchars($_GET['suggested']??'NONE')?>.</div><?php endif;?>
 <?php if(isset($_GET['notification'])):?><div class="alert success">Notificação emitida com sucesso.</div><?php endif;?>
@@ -31,8 +37,25 @@ $operational=in_array($work['status'],['IN_PROGRESS','NOTIFIED','SUSPENDED','EMB
 <?php if($canInspect):?><a class="button secondary" href="/settings?condo=<?=(int)$work['condominium_id']?>">Configurar fiscalização</a><?php endif;?>
 </div></section>
 
-<div class="detail-grid"><section class="panel"><div class="panel-header"><div><h2>Dados da obra</h2><p>Informações principais cadastradas.</p></div></div><div class="info-grid"><div><small>Proprietário</small><strong><?=htmlspecialchars($work['owner_name'])?></strong><span><?=htmlspecialchars($work['owner_phone']?:'-')?></span></div><div><small>Empresa</small><strong><?=htmlspecialchars($work['company_name']?:'-')?></strong><span><?=htmlspecialchars($work['company_phone']?:'-')?></span></div><div><small>Responsável técnico</small><strong><?=htmlspecialchars($work['technical_name']?:'-')?></strong><span><?=htmlspecialchars($work['technical_registry']?:'-')?></span></div><div><small>Período previsto</small><strong><?=htmlspecialchars($work['planned_start']?:'-')?> → <?=htmlspecialchars($work['planned_end']?:'-')?></strong></div></div><?php if($work['description']):?><div class="description-box"><?=nl2br(htmlspecialchars($work['description']))?></div><?php endif;?></section>
-<section class="panel actions-panel"><h2>Etapa documental</h2><?php if($canReview&&in_array($work['status'],['WAITING_DOCUMENTS','UNDER_REVIEW','CORRECTION_REQUIRED'],true)):?><form method="post" action="/work/transition"><input type="hidden" name="_token" value="<?=htmlspecialchars(Csrf::token())?>"><input type="hidden" name="work_id" value="<?=(int)$work['id']?>"><input type="hidden" name="target_status" value="TECHNICALLY_APPROVED"><button class="button primary">Aprovar tecnicamente</button></form><?php endif;?><?php if($canAuthorize&&$work['status']==='TECHNICALLY_APPROVED'):?><form method="post" action="/work/transition"><input type="hidden" name="_token" value="<?=htmlspecialchars(Csrf::token())?>"><input type="hidden" name="work_id" value="<?=(int)$work['id']?>"><input type="hidden" name="target_status" value="AUTHORIZED"><button class="button primary">Autorizar início</button></form><?php endif;?><?php if($canAuthorize&&$work['status']==='AUTHORIZED'):?><form method="post" action="/work/transition"><input type="hidden" name="_token" value="<?=htmlspecialchars(Csrf::token())?>"><input type="hidden" name="work_id" value="<?=(int)$work['id']?>"><input type="hidden" name="target_status" value="IN_PROGRESS"><button class="button primary">Registrar início da obra</button></form><?php endif;?></section></div>
+<div class="detail-grid"><section class="panel"><div class="panel-header"><div><h2>Dados da obra</h2><p>Informações principais cadastradas.</p></div></div>
+<div class="work-detail-photo-row">
+    <div class="cover-frame work-detail-cover">
+        <?php if(!empty($work['cover_photo_path'])):?><img src="/work/photo?id=<?=(int)$work['id']?>" alt="Foto da obra <?=htmlspecialchars($work['unit'])?>"><?php else:?><div class="cover-placeholder"><span>🏗</span><small>Sem foto de capa</small></div><?php endif;?>
+    </div>
+    <?php if($canInspect):?><form class="photo-inline-form" method="post" action="/work/photo/upload" enctype="multipart/form-data"><input type="hidden" name="_token" value="<?=htmlspecialchars(Csrf::token())?>"><input type="hidden" name="work_id" value="<?=(int)$work['id']?>"><input type="hidden" name="return_to" value="work"><label class="button secondary file-button">Alterar foto<input type="file" name="photo" accept="image/jpeg,image/png,image/webp" required onchange="this.form.submit()"></label></form><?php endif;?>
+</div>
+<div class="info-grid"><div><small>Proprietário</small><strong><?=htmlspecialchars($work['owner_name'])?></strong><span><?=htmlspecialchars($work['owner_phone']?:'-')?></span></div><div><small>Empresa</small><strong><?=htmlspecialchars($work['company_name']?:'-')?></strong><span><?=htmlspecialchars($work['company_phone']?:'-')?></span></div><div><small>Responsável técnico</small><strong><?=htmlspecialchars($work['technical_name']?:'-')?></strong><span><?=htmlspecialchars($work['technical_registry']?:'-')?></span></div><div><small>Período previsto</small><strong><?=htmlspecialchars($work['planned_start']?:'-')?> → <?=htmlspecialchars($work['planned_end']?:'-')?></strong></div></div><?php if($work['description']):?><div class="description-box"><?=nl2br(htmlspecialchars($work['description']))?></div><?php endif;?></section>
+<section class="panel actions-panel"><h2>Etapa documental</h2>
+<?php if($canReview&&in_array($work['status'],['WAITING_DOCUMENTS','UNDER_REVIEW','CORRECTION_REQUIRED'],true)):?>
+    <?php if($pendingRequiredDocuments===0):?>
+        <div class="approval-ready">Todos os <?=$requiredDocumentCount?> documentos obrigatórios estão aprovados.</div>
+        <form method="post" action="/work/transition"><input type="hidden" name="_token" value="<?=htmlspecialchars(Csrf::token())?>"><input type="hidden" name="work_id" value="<?=(int)$work['id']?>"><input type="hidden" name="target_status" value="TECHNICALLY_APPROVED"><button class="button primary">Aprovar tecnicamente</button></form>
+    <?php else:?>
+        <div class="approval-blocked"><strong>Aprovação técnica indisponível.</strong><br><?=$pendingRequiredDocuments?> documento(s) obrigatório(s) ainda precisam ser enviados e aprovados.</div>
+    <?php endif;?>
+<?php endif;?>
+<?php if($canAuthorize&&$work['status']==='TECHNICALLY_APPROVED'):?><form method="post" action="/work/transition"><input type="hidden" name="_token" value="<?=htmlspecialchars(Csrf::token())?>"><input type="hidden" name="work_id" value="<?=(int)$work['id']?>"><input type="hidden" name="target_status" value="AUTHORIZED"><button class="button primary">Autorizar início</button></form><?php endif;?>
+<?php if($canAuthorize&&$work['status']==='AUTHORIZED'):?><form method="post" action="/work/transition"><input type="hidden" name="_token" value="<?=htmlspecialchars(Csrf::token())?>"><input type="hidden" name="work_id" value="<?=(int)$work['id']?>"><input type="hidden" name="target_status" value="IN_PROGRESS"><button class="button primary">Registrar início da obra</button></form><?php endif;?></section></div>
 
 <section class="panel" id="documentos"><div class="panel-header"><div><h2>Documentos</h2><p>Versões, análise e acesso seguro aos arquivos.</p></div></div><div class="document-list">
 <?php foreach($documents as $doc):?><article class="document-row"><div class="document-main"><div><strong><?=htmlspecialchars($doc['name'])?></strong><?php if($doc['required_default']):?><span class="required-tag">Obrigatório</span><?php endif;?></div><p><?=$doc['document_id']?htmlspecialchars($doc['original_name']).' · v'.(int)$doc['version']:'Nenhum arquivo enviado'?></p><?php if($doc['review_notes']):?><div class="review-note"><?=nl2br(htmlspecialchars($doc['review_notes']))?></div><?php endif;?></div><div class="document-status"><span class="badge"><?=htmlspecialchars($documentLabels[$doc['status']??'PENDING']??($doc['status']??'Pendente'))?></span></div>
