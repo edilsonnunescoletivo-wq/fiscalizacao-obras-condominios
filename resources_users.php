@@ -24,6 +24,7 @@ $globalAdminIds=array_map('intval',array_column($globalAdmins,'id'));
 <title>Usuários e permissões · <?=htmlspecialchars($condominium['name'])?></title>
 <link rel="stylesheet" href="/assets/css/app.css">
 <link rel="stylesheet" href="/assets/css/ui-v2.css">
+<style>.role-guide-item{border:1px solid #eaecf0;border-radius:10px;padding:12px 14px;background:#f8fafc}.role-guide-item strong,.role-guide-item span{display:block}.role-guide-item span{color:#667085;font-size:12px;line-height:1.45;margin-top:5px}</style>
 </head>
 <body class="app-body"><div class="shell">
 <?php require __DIR__ . '/resources_sidebar.php'; ?>
