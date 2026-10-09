@@ -19,6 +19,7 @@ use App\Controllers\DossierPdfController;
 use App\Controllers\ReportsController;
 use App\Controllers\SettingsController;
 use App\Controllers\ChecklistPresetController;
+use App\Controllers\FiscalPanelController;
 use App\Controllers\CorrectionController;
 use App\Controllers\InspectionFormController;
 use App\Controllers\DocumentController;
@@ -27,8 +28,27 @@ use App\Controllers\PasswordSetupController;
 use App\Controllers\MaintenanceController;
 use App\Controllers\CondominiumModuleController;
 use App\Controllers\UserAccessController;
+use App\Core\Auth;
+use App\Core\WorkAccess;
 
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+
+$managementSettingsPaths = [
+    '/settings','/settings/rules','/settings/template','/settings/checklist','/settings/checklist/update',
+    '/settings/checklist-preset','/settings/checklist/preset','/settings/document','/settings/document/update','/settings/severity',
+];
+if (in_array($path, $managementSettingsPaths, true)) {
+    if (!Auth::check()) {
+        header('Location: /login');
+        exit;
+    }
+    $condoId = (int)($_GET['condo'] ?? $_POST['condo_id'] ?? 0);
+    $roles = WorkAccess::rolesForCondo($condoId, (int)(Auth::user()['id'] ?? 0));
+    if ($condoId <= 0 || !WorkAccess::canManage($roles)) {
+        http_response_code(403);
+        exit('Apenas perfis de gestão podem alterar configurações do condomínio.');
+    }
+}
 
 switch ($path) {
     case '/login': (new AuthController())->login(); break;
@@ -83,6 +103,7 @@ switch ($path) {
     case '/work/completion/term': (new CompletionPdfController())->show(); break;
     case '/work/dossier': (new DossierPdfController())->show(); break;
     case '/reports': (new ReportsController())->index(); break;
+    case '/fiscal-panel': (new FiscalPanelController())->index(); break;
     case '/settings': (new SettingsController())->index(); break;
     case '/settings/rules': (new SettingsController())->saveRules(); break;
     case '/settings/template': (new SettingsController())->saveTemplate(); break;
