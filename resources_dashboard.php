@@ -48,14 +48,16 @@
                     </div>
                     <div class="card-actions-row">
                         <a class="button primary" href="/works?condo=<?= (int)$c['id'] ?>">Acessar condomínio</a>
-                        <?php if (!empty($c['can_manage'])): ?>
-                            <form class="cover-upload" method="post" action="/condominium/photo/upload" enctype="multipart/form-data">
-                                <input type="hidden" name="_token" value="<?=htmlspecialchars(Csrf::token())?>">
-                                <input type="hidden" name="condominium_id" value="<?=(int)$c['id']?>">
-                                <label class="button secondary file-button">Foto<input type="file" name="photo" accept="image/jpeg,image/png,image/webp" required onchange="this.form.submit()"></label>
-                            </form>
-                        <?php endif; ?>
                     </div>
+                    <?php if (!empty($c['can_manage'])): ?>
+                        <form class="photo-inline-form" method="post" action="/condominium/photo/upload" enctype="multipart/form-data" style="margin-top:12px">
+                            <input type="hidden" name="_token" value="<?=htmlspecialchars(Csrf::token())?>">
+                            <input type="hidden" name="condominium_id" value="<?=(int)$c['id']?>">
+                            <input type="hidden" name="return_to" value="dashboard">
+                            <label class="button secondary file-button">Escolher foto<input type="file" name="photo" accept="image/jpeg,image/png,image/webp" required></label>
+                            <button class="button secondary" type="submit">Salvar foto</button>
+                        </form>
+                    <?php endif; ?>
                 </div>
             </article>
         <?php endforeach; ?>
