@@ -52,7 +52,11 @@ final class CondominiumModuleController
     {
         [, $condominium, $roles] = $this->requireStaff();
         $pdo = Database::connection();
-        $stmt = $pdo->prepare('SELECT nc.id,nc.title,nc.severity,nc.status,nc.corrective_deadline,nc.created_at,nc.description,w.id work_id,w.unit,w.owner_name,u.name creator_name,i.stage inspection_stage FROM non_conformities nc JOIN works w ON w.id=nc.work_id JOIN users u ON u.id=nc.created_by LEFT JOIN inspections i ON i.id=nc.inspection_id WHERE w.condominium_id=? ORDER BY FIELD(nc.status,"OPEN","CORRECTED","CLOSED"),nc.created_at DESC,nc.id DESC');
+        $stmt = $pdo->prepare('SELECT nc.id,nc.title,nc.severity,nc.status,nc.corrective_deadline,nc.created_at,nc.description,w.id work_id,w.unit,w.owner_name,u.name creator_name,i.stage inspection_stage,
+            CASE WHEN nc.corrective_deadline IS NOT NULL AND nc.corrective_deadline < NOW() AND nc.status <> "CLOSED" THEN 1 ELSE 0 END overdue
+            FROM non_conformities nc JOIN works w ON w.id=nc.work_id JOIN users u ON u.id=nc.created_by LEFT JOIN inspections i ON i.id=nc.inspection_id
+            WHERE w.condominium_id=?
+            ORDER BY overdue DESC,FIELD(nc.status,"OPEN","CORRECTED","CLOSED"),nc.created_at DESC,nc.id DESC');
         $stmt->execute([$condominium['id']]);
         $items = $stmt->fetchAll();
         $module = 'corrections';
@@ -65,7 +69,12 @@ final class CondominiumModuleController
     {
         [, $condominium, $roles] = $this->requireStaff();
         $pdo = Database::connection();
-        $stmt = $pdo->prepare('SELECT n.id,n.type,n.number,n.reason,n.deadline,n.status,n.issued_at,n.created_at,w.id work_id,w.unit,w.owner_name,u.name creator_name FROM notifications n JOIN works w ON w.id=n.work_id JOIN users u ON u.id=n.created_by WHERE w.condominium_id=? ORDER BY COALESCE(n.issued_at,n.created_at) DESC,n.id DESC');
+        $stmt = $pdo->prepare('SELECT n.id,n.type,n.number,n.reason,n.deadline,n.status,n.issued_at,n.created_at,w.id work_id,w.unit,w.owner_name,w.status work_status,u.name creator_name,
+            CASE WHEN n.deadline IS NOT NULL AND n.deadline < NOW() AND n.status IN ("ISSUED","DELIVERED") THEN 1 ELSE 0 END overdue,
+            CASE WHEN n.type IN ("SUSPENSION","EMBARGO") AND n.status IN ("ISSUED","DELIVERED") AND w.status IN ("SUSPENDED","EMBARGOED") THEN 1 ELSE 0 END active_restriction
+            FROM notifications n JOIN works w ON w.id=n.work_id JOIN users u ON u.id=n.created_by
+            WHERE w.condominium_id=?
+            ORDER BY active_restriction DESC,overdue DESC,COALESCE(n.issued_at,n.created_at) DESC,n.id DESC');
         $stmt->execute([$condominium['id']]);
         $items = $stmt->fetchAll();
         $module = 'notifications';
