@@ -11,9 +11,12 @@ $sidebarUserId = Auth::check() ? (int)(Auth::user()['id'] ?? 0) : 0;
 $sidebarRoles = $sidebarRoles ?? ($sidebarCondoId > 0 && $sidebarUserId > 0 ? WorkAccess::rolesForCondo($sidebarCondoId, $sidebarUserId) : []);
 $sidebarCanInspect = WorkAccess::canInspect($sidebarRoles);
 $sidebarCanManage = WorkAccess::canManage($sidebarRoles);
+$sidebarIsResponsible = in_array('WORK_RESPONSIBLE', $sidebarRoles, true) && count(array_diff($sidebarRoles, ['WORK_RESPONSIBLE'])) === 0;
 
-function sidebarClass(string $key, string $active): string {
-    return $key === $active ? 'active' : '';
+if (!function_exists('sidebarClass')) {
+    function sidebarClass(string $key, string $active): string {
+        return $key === $active ? 'active' : '';
+    }
 }
 ?>
 <button type="button" class="sidebar-mobile-toggle" aria-label="Abrir menu" onclick="document.body.classList.toggle('sidebar-open')">☰ Menu</button>
@@ -32,45 +35,51 @@ function sidebarClass(string $key, string $active): string {
             <?php endif; ?>
         </div>
 
-        <?php if($sidebarCondoId > 0): ?>
+        <?php if($sidebarCondoId > 0 && ($sidebarCanInspect || $sidebarWorkId > 0)): ?>
         <div class="sidebar-group">
             <span class="sidebar-group-title">Fiscalização</span>
-            <?php if($sidebarWorkId > 0 && $sidebarCanInspect): ?>
-                <a class="<?=sidebarClass('inspections',$sidebarActive)?>" href="/inspection/new?work=<?=$sidebarWorkId?>">Fiscalizações</a>
-            <?php else: ?>
-                <a class="<?=sidebarClass('inspections',$sidebarActive)?>" href="/reports?condo=<?=$sidebarCondoId?>">Fiscalizações</a>
+            <?php if($sidebarCanInspect): ?>
+                <a class="<?=sidebarClass('inspections',$sidebarActive)?>" href="<?=$sidebarWorkId > 0 ? '/inspection/new?work='.$sidebarWorkId : '/reports?condo='.$sidebarCondoId?>">Fiscalizações</a>
             <?php endif; ?>
-            <a class="<?=sidebarClass('corrections',$sidebarActive)?>" href="<?=$sidebarWorkId > 0 ? '/corrections?work='.$sidebarWorkId : '/reports?condo='.$sidebarCondoId?>">Não conformidades / Correções</a>
-            <a class="<?=sidebarClass('notifications',$sidebarActive)?>" href="<?=$sidebarWorkId > 0 ? '/notifications?work='.$sidebarWorkId : '/reports?condo='.$sidebarCondoId?>">Notificações</a>
+            <?php if($sidebarWorkId > 0 || $sidebarCanInspect): ?>
+                <a class="<?=sidebarClass('corrections',$sidebarActive)?>" href="<?=$sidebarWorkId > 0 ? '/corrections?work='.$sidebarWorkId : '/reports?condo='.$sidebarCondoId?>">Não conformidades / Correções</a>
+            <?php endif; ?>
+            <?php if($sidebarCanInspect): ?>
+                <a class="<?=sidebarClass('notifications',$sidebarActive)?>" href="<?=$sidebarWorkId > 0 ? '/notifications?work='.$sidebarWorkId : '/reports?condo='.$sidebarCondoId?>">Notificações</a>
+            <?php endif; ?>
         </div>
+        <?php endif; ?>
 
+        <?php if($sidebarCondoId > 0): ?>
         <div class="sidebar-group">
             <span class="sidebar-group-title">Documentação</span>
             <a class="<?=sidebarClass('documents',$sidebarActive)?>" href="<?=$sidebarWorkId > 0 ? '/work?id='.$sidebarWorkId.'#documentos' : '/works?condo='.$sidebarCondoId.'#obras'?>">Documentos</a>
-            <a class="<?=sidebarClass('completion',$sidebarActive)?>" href="<?=$sidebarWorkId > 0 ? '/work/completion?id='.$sidebarWorkId : '/reports?condo='.$sidebarCondoId.'&status=COMPLETED'?>">Conclusões</a>
-            <?php if($sidebarWorkId > 0 && $sidebarWorkStatus === 'COMPLETED'): ?>
-                <a class="<?=sidebarClass('dossier',$sidebarActive)?>" target="_blank" href="/work/dossier?id=<?=$sidebarWorkId?>">Dossiê digital</a>
-            <?php else: ?>
-                <a class="<?=sidebarClass('dossier',$sidebarActive)?>" href="/reports?condo=<?=$sidebarCondoId?>&status=COMPLETED">Dossiês digitais</a>
+            <?php if($sidebarCanInspect): ?>
+                <a class="<?=sidebarClass('completion',$sidebarActive)?>" href="<?=$sidebarWorkId > 0 ? '/work/completion?id='.$sidebarWorkId : '/reports?condo='.$sidebarCondoId.'&status=COMPLETED'?>">Conclusões</a>
+                <?php if($sidebarWorkId > 0 && $sidebarWorkStatus === 'COMPLETED'): ?>
+                    <a class="<?=sidebarClass('dossier',$sidebarActive)?>" target="_blank" href="/work/dossier?id=<?=$sidebarWorkId?>">Dossiê digital</a>
+                <?php else: ?>
+                    <a class="<?=sidebarClass('dossier',$sidebarActive)?>" href="/reports?condo=<?=$sidebarCondoId?>&status=COMPLETED">Dossiês digitais</a>
+                <?php endif; ?>
             <?php endif; ?>
         </div>
 
+        <?php if($sidebarCanInspect): ?>
         <div class="sidebar-group">
             <span class="sidebar-group-title">Gestão</span>
             <a class="<?=sidebarClass('reports',$sidebarActive)?>" href="/reports?condo=<?=$sidebarCondoId?>">Relatórios</a>
             <?php if($sidebarCanManage): ?>
                 <a class="<?=sidebarClass('users',$sidebarActive)?>" href="/settings?condo=<?=$sidebarCondoId?>#acessos">Usuários / Permissões</a>
             <?php endif; ?>
-            <?php if($sidebarCanInspect): ?>
-                <a class="<?=sidebarClass('settings',$sidebarActive)?>" href="/settings?condo=<?=$sidebarCondoId?>">Configurações do condomínio</a>
-                <a class="<?=sidebarClass('fiscal',$sidebarActive)?>" href="/settings?condo=<?=$sidebarCondoId?>#fiscalizacao">Painel do Fiscal</a>
-            <?php endif; ?>
+            <a class="<?=sidebarClass('settings',$sidebarActive)?>" href="/settings?condo=<?=$sidebarCondoId?>">Configurações do condomínio</a>
+            <a class="<?=sidebarClass('fiscal',$sidebarActive)?>" href="/settings?condo=<?=$sidebarCondoId?>#fiscalizacao">Painel do Fiscal</a>
         </div>
+        <?php endif; ?>
         <?php endif; ?>
 
         <div class="sidebar-group sidebar-bottom-group">
             <span class="sidebar-group-title">Navegação</span>
-            <a href="/">Trocar condomínio</a>
+            <?php if(!$sidebarIsResponsible): ?><a href="/">Trocar condomínio</a><?php endif; ?>
             <form method="post" action="/logout" class="sidebar-logout">
                 <input type="hidden" name="_token" value="<?=htmlspecialchars(Csrf::token())?>">
                 <button type="submit">Sair</button>
