@@ -30,6 +30,7 @@ $sidebarActive='condo';
 
         <?php if(isset($_GET['created'])):?><div class="alert success">Obra cadastrada com sucesso.</div><?php endif;?>
         <?php if(isset($_GET['photo'])):?><div class="alert success">Foto da obra atualizada com sucesso.</div><?php endif;?>
+        <?php if(isset($_GET['condo_photo'])):?><div class="alert success">Foto do condomínio atualizada com sucesso.</div><?php endif;?>
 
         <section class="condo-summary-card">
             <div class="condo-summary-cover">
@@ -52,6 +53,15 @@ $sidebarActive='condo';
                     <a class="button secondary" href="/reports?condo=<?=(int)$condominium['id']?>">Relatórios</a>
                     <?php if($canCreate):?><a class="button secondary" href="/settings?condo=<?=(int)$condominium['id']?>">Configurar fiscalização</a><?php endif;?>
                 </div>
+                <?php if($canManage):?>
+                    <form class="photo-inline-form" method="post" action="/condominium/photo/upload" enctype="multipart/form-data" style="margin-top:14px">
+                        <input type="hidden" name="_token" value="<?=htmlspecialchars(App\Core\Csrf::token())?>">
+                        <input type="hidden" name="condominium_id" value="<?=(int)$condominium['id']?>">
+                        <input type="hidden" name="return_to" value="works">
+                        <label class="button secondary file-button"><?=!empty($condominium['photo_path'])?'Alterar foto':'Escolher foto'?><input type="file" name="photo" accept="image/jpeg,image/png,image/webp" required></label>
+                        <button class="button secondary" type="submit">Salvar foto</button>
+                    </form>
+                <?php endif;?>
             </div>
         </section>
 
