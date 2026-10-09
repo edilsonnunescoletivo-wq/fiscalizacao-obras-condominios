@@ -124,7 +124,12 @@ final class MediaController
         $this->removeOldImage($oldPath ?: null, dirname(__DIR__, 2) . '/storage/uploads/condominiums');
         Audit::log((int)$user['id'], $condoId, 'condominium', $condoId, 'PHOTO_UPDATED', ['original_name'=>$original]);
 
-        header('Location: /?photo=1');
+        $return = (string)($_POST['return_to'] ?? 'dashboard');
+        if ($return === 'works') {
+            header('Location: /works?condo=' . $condoId . '&condo_photo=1');
+        } else {
+            header('Location: /?photo=1');
+        }
         exit;
     }
 
