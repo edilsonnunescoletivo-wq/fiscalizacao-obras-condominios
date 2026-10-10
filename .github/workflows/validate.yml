@@ -60,8 +60,9 @@ jobs:
           test -f database/migrations/010_super_admin_password_setup.sql
           test -f database/migrations/011_visual_covers.sql
           test -f database/migrations/012_non_conformity_routing.sql
+          test -f database/migrations/013_inspection_acceptances.sql
           count=$(find database/migrations -maxdepth 1 -type f -name '*.sql' | wc -l)
-          test "$count" -ge 12
+          test "$count" -ge 13
           echo "Migrations encontradas: $count"
 
       - name: Aplicar migrations em MySQL temporario
