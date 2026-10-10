@@ -51,7 +51,7 @@ foreach ($migrations as $migration) {
 
 $requiredTables = [
     'users','roles','condominiums','condominium_user','works','document_types','work_documents',
-    'work_events','inspections','inspection_photos','non_conformities','non_conformity_evidence',
+    'work_events','inspections','inspection_photos','inspection_acceptances','non_conformities','non_conformity_evidence',
     'notifications','notification_sequences','work_access_invites','work_completion_terms',
     'condominium_rules','notification_templates','inspection_checklist_items','severity_action_rules','audit_log',
     'schema_migrations','password_setup_tokens',
@@ -78,6 +78,9 @@ $requiredColumns = [
     ['works','cover_photo_path','migration 011'],
     ['non_conformities','priority','migration 012'],
     ['non_conformities','assigned_user_id','migration 012'],
+    ['inspection_acceptances','signer_type','migration 013'],
+    ['inspection_acceptances','signature_hash','migration 013'],
+    ['inspection_acceptances','signed_at','migration 013'],
 ];
 foreach ($requiredColumns as [$table,$column,$source]) {
     $stmt = $pdo->query("SHOW COLUMNS FROM `{$table}` LIKE " . $pdo->quote($column));
@@ -99,6 +102,16 @@ if ($uniqueLegacy) {
 $routingIndex = $pdo->query("SHOW INDEX FROM non_conformities WHERE Key_name='idx_nc_assignee_status'")->fetch();
 if (!$routingIndex) {
     throw new RuntimeException('Índice de responsável da pendência não encontrado após migration 012.');
+}
+
+$acceptanceIndex = $pdo->query("SHOW INDEX FROM inspection_acceptances WHERE Key_name='idx_inspection_acceptance_inspection'")->fetch();
+if (!$acceptanceIndex) {
+    throw new RuntimeException('Índice de aceite eletrônico da vistoria não encontrado após migration 013.');
+}
+
+$acceptanceUnique = $pdo->query("SHOW INDEX FROM inspection_acceptances WHERE Key_name='uq_inspection_acceptance_user_type'")->fetch();
+if (!$acceptanceUnique) {
+    throw new RuntimeException('Restrição de unicidade do aceite eletrônico não encontrada após migration 013.');
 }
 
 $expectedMigrations = array_map('basename', $migrations);
