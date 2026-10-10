@@ -28,6 +28,8 @@ use App\Controllers\PasswordSetupController;
 use App\Controllers\MaintenanceController;
 use App\Controllers\CondominiumModuleController;
 use App\Controllers\UserAccessController;
+use App\Controllers\PendingController;
+use App\Controllers\WorkDiaryController;
 use App\Core\Auth;
 use App\Core\WorkAccess;
 
@@ -66,6 +68,7 @@ switch ($path) {
     case '/works/create': (new WorksController())->create(); break;
     case '/condominium/inspections': (new CondominiumModuleController())->inspections(); break;
     case '/condominium/non-conformities': (new CondominiumModuleController())->nonConformities(); break;
+    case '/condominium/pending': (new PendingController())->index(); break;
     case '/condominium/notifications': (new CondominiumModuleController())->notifications(); break;
     case '/condominium/documents': (new CondominiumModuleController())->documents(); break;
     case '/condominium/completions': (new CondominiumModuleController())->completions(); break;
@@ -74,6 +77,7 @@ switch ($path) {
     case '/users/access/add': (new UserAccessController())->add(); break;
     case '/users/access/toggle': (new UserAccessController())->toggle(); break;
     case '/work': (new WorkDetailController())->show(); break;
+    case '/work/diary': (new WorkDiaryController())->show(); break;
     case '/work/document': (new DocumentController())->show(); break;
     case '/work/document/upload': (new WorkDetailController())->uploadDocument(); break;
     case '/work/document/review': (new WorkDetailController())->reviewDocument(); break;
