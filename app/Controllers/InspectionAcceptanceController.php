@@ -10,6 +10,79 @@ use App\Core\WorkAccess;
 
 final class InspectionAcceptanceController
 {
+    private const DECLARATIONS = [
+        'INSPECTOR' => 'Declaro que revisei os dados, checklist, observações e evidências desta fiscalização e confirmo o registro técnico sob minha responsabilidade.',
+        'WORK_RESPONSIBLE' => 'Declaro que tomei ciência do conteúdo desta fiscalização, incluindo apontamentos, evidências e eventuais orientações de correção, sem que este aceite represente concordância técnica automática.',
+        'MANAGEMENT' => 'Declaro que revisei o registro desta fiscalização para fins de validação administrativa e rastreabilidade interna.',
+    ];
+
+    private const TYPE_LABELS = [
+        'INSPECTOR' => 'Fiscal',
+        'WORK_RESPONSIBLE' => 'Responsável pela obra',
+        'MANAGEMENT' => 'Gestão',
+    ];
+
+    public function show(): void
+    {
+        if (!Auth::check()) {
+            header('Location: /login');
+            exit;
+        }
+
+        $user = Auth::user();
+        $inspectionId = (int)($_GET['id'] ?? 0);
+        $returnTo = (string)($_GET['return_to'] ?? 'photos') === 'responsible' ? 'responsible' : 'photos';
+        $pdo = Database::connection();
+
+        $stmt = $pdo->prepare(
+            'SELECT i.*,u.name inspector_name,w.unit,w.owner_name,w.work_type,w.condominium_id,w.responsible_user_id,c.name condominium_name
+             FROM inspections i
+             JOIN users u ON u.id=i.inspector_user_id
+             JOIN works w ON w.id=i.work_id
+             JOIN condominiums c ON c.id=w.condominium_id
+             WHERE i.id=?'
+        );
+        $stmt->execute([$inspectionId]);
+        $inspection = $stmt->fetch();
+        if (!$inspection) {
+            http_response_code(404);
+            exit('Fiscalização não encontrada.');
+        }
+
+        $work = WorkAccess::load((int)$inspection['work_id'], (int)$user['id']);
+        $roles = $work['_roles'];
+        $featureReady = (bool)$pdo->query("SHOW TABLES LIKE 'inspection_acceptances'")->fetchColumn();
+        $acceptances = [];
+        $availableTypes = [];
+
+        if ($featureReady) {
+            $stmt = $pdo->prepare('SELECT * FROM inspection_acceptances WHERE inspection_id=? ORDER BY signed_at,id');
+            $stmt->execute([$inspectionId]);
+            $acceptances = $stmt->fetchAll();
+
+            $eligible = [];
+            if ((int)$inspection['inspector_user_id'] === (int)$user['id']) $eligible[] = 'INSPECTOR';
+            if ((int)$inspection['responsible_user_id'] === (int)$user['id'] && in_array('WORK_RESPONSIBLE', $roles, true)) $eligible[] = 'WORK_RESPONSIBLE';
+            if (WorkAccess::canManage($roles)) $eligible[] = 'MANAGEMENT';
+
+            $alreadySigned = [];
+            foreach ($acceptances as $acceptance) {
+                if ((int)$acceptance['signer_user_id'] === (int)$user['id']) {
+                    $alreadySigned[] = (string)$acceptance['signer_type'];
+                }
+            }
+            $availableTypes = array_values(array_diff(array_unique($eligible), array_unique($alreadySigned)));
+        }
+
+        $typeLabels = self::TYPE_LABELS;
+        $declarations = self::DECLARATIONS;
+        $backUrl = $returnTo === 'responsible'
+            ? '/responsible/work?id=' . (int)$inspection['work_id'] . '#fiscalizacoes'
+            : '/inspection/photos?id=' . $inspectionId;
+
+        require dirname(__DIR__, 2) . '/resources_inspection_acceptance.php';
+    }
+
     public function sign(): void
     {
         if (!Auth::check()) {
@@ -26,13 +99,13 @@ final class InspectionAcceptanceController
         $signerType = (string)($_POST['signer_type'] ?? '');
         $typedName = trim((string)($_POST['typed_name'] ?? ''));
         $confirmed = (string)($_POST['accept'] ?? '') === '1';
-        $returnTo = (string)($_POST['return_to'] ?? 'photos');
+        $returnTo = (string)($_POST['return_to'] ?? 'photos') === 'responsible' ? 'responsible' : 'photos';
 
         if ($inspectionId <= 0 || !$confirmed || mb_strlen($typedName) < 3 || mb_strlen($typedName) > 150) {
             http_response_code(422);
             exit('Confirme a declaração e informe seu nome completo.');
         }
-        if (!in_array($signerType, ['INSPECTOR','WORK_RESPONSIBLE','MANAGEMENT'], true)) {
+        if (!isset(self::DECLARATIONS[$signerType])) {
             http_response_code(422);
             exit('Tipo de aceite inválido.');
         }
@@ -69,12 +142,7 @@ final class InspectionAcceptanceController
             exit('Você não pode registrar este tipo de aceite.');
         }
 
-        $declaration = match ($signerType) {
-            'INSPECTOR' => 'Declaro que revisei os dados, checklist, observações e evidências desta fiscalização e confirmo o registro técnico sob minha responsabilidade.',
-            'WORK_RESPONSIBLE' => 'Declaro que tomei ciência do conteúdo desta fiscalização, incluindo apontamentos, evidências e eventuais orientações de correção, sem que este aceite represente concordância técnica automática.',
-            'MANAGEMENT' => 'Declaro que revisei o registro desta fiscalização para fins de validação administrativa e rastreabilidade interna.',
-        };
-
+        $declaration = self::DECLARATIONS[$signerType];
         $stmt = $pdo->prepare('SELECT id FROM inspection_acceptances WHERE inspection_id=? AND signer_user_id=? AND signer_type=? LIMIT 1');
         $stmt->execute([$inspectionId, $user['id'], $signerType]);
         if ($stmt->fetchColumn()) {
@@ -114,9 +182,8 @@ final class InspectionAcceptanceController
         ]);
         $acceptanceId = (int)$pdo->lastInsertId();
 
-        $typeLabels = ['INSPECTOR'=>'Fiscal','WORK_RESPONSIBLE'=>'Responsável pela obra','MANAGEMENT'=>'Gestão'];
         $pdo->prepare('INSERT INTO work_events(work_id,user_id,event_type,title,description) VALUES(?,?,?,?,?)')
-            ->execute([(int)$inspection['work_id'],(int)$user['id'],'INSPECTION_ACCEPTED','Aceite eletrônico da fiscalização',($typeLabels[$signerType] ?? $signerType).' · Vistoria #'.$inspectionId]);
+            ->execute([(int)$inspection['work_id'],(int)$user['id'],'INSPECTION_ACCEPTED','Aceite eletrônico da fiscalização',(self::TYPE_LABELS[$signerType] ?? $signerType).' · Vistoria #'.$inspectionId]);
         Audit::log((int)$user['id'], (int)$inspection['condominium_id'], 'inspection_acceptance', $acceptanceId, 'SIGNED', [
             'inspection_id'=>$inspectionId,
             'work_id'=>(int)$inspection['work_id'],
@@ -130,11 +197,8 @@ final class InspectionAcceptanceController
 
     private function redirect(string $returnTo, int $workId, int $inspectionId, string $flag): never
     {
-        if ($returnTo === 'responsible') {
-            header('Location: /responsible/work?id=' . $workId . '&' . $flag . '=1#fiscalizacoes');
-        } else {
-            header('Location: /inspection/photos?id=' . $inspectionId . '&' . $flag . '=1');
-        }
+        $url = '/inspection/acceptance?id=' . $inspectionId . '&return_to=' . ($returnTo === 'responsible' ? 'responsible' : 'photos') . '&' . $flag . '=1';
+        header('Location: ' . $url);
         exit;
     }
 }
