@@ -76,6 +76,8 @@ $requiredColumns = [
     ['condominiums','photo_path','migration 011'],
     ['works','cover_photo_original_name','migration 011'],
     ['works','cover_photo_path','migration 011'],
+    ['non_conformities','priority','migration 012'],
+    ['non_conformities','assigned_user_id','migration 012'],
 ];
 foreach ($requiredColumns as [$table,$column,$source]) {
     $stmt = $pdo->query("SHOW COLUMNS FROM `{$table}` LIKE " . $pdo->quote($column));
@@ -92,6 +94,11 @@ if (!$indexStmt->fetch()) {
 $uniqueLegacy = $pdo->query("SHOW INDEX FROM notifications WHERE Key_name='uq_notification_number'")->fetch();
 if ($uniqueLegacy) {
     throw new RuntimeException('Índice UNIQUE legado uq_notification_number ainda existe.');
+}
+
+$routingIndex = $pdo->query("SHOW INDEX FROM non_conformities WHERE Key_name='idx_nc_assignee_status'")->fetch();
+if (!$routingIndex) {
+    throw new RuntimeException('Índice de responsável da pendência não encontrado após migration 012.');
 }
 
 $expectedMigrations = array_map('basename', $migrations);
