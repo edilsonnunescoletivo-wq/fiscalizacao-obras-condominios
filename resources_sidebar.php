@@ -40,8 +40,10 @@ if (!function_exists('sidebarClass')) {
         <div class="sidebar-group">
             <span class="sidebar-group-title">Fiscalização</span>
             <a class="<?=sidebarClass('inspections',$sidebarActive)?>" href="/condominium/inspections?condo=<?=$sidebarCondoId?>">Fiscalizações</a>
+            <a class="<?=sidebarClass('pending',$sidebarActive)?>" href="/condominium/pending?condo=<?=$sidebarCondoId?>">Central de Pendências</a>
             <a class="<?=sidebarClass('corrections',$sidebarActive)?>" href="/condominium/non-conformities?condo=<?=$sidebarCondoId?>">Não conformidades / Correções</a>
             <a class="<?=sidebarClass('notifications',$sidebarActive)?>" href="/condominium/notifications?condo=<?=$sidebarCondoId?>">Notificações</a>
+            <?php if($sidebarWorkId > 0): ?><a class="<?=sidebarClass('diary',$sidebarActive)?>" href="/work/diary?id=<?=$sidebarWorkId?>">Diário da Obra</a><?php endif; ?>
             <?php if($sidebarCanManage): ?>
                 <a class="<?=sidebarClass('checklist-preset',$sidebarActive)?>" href="/settings/checklist-preset?condo=<?=$sidebarCondoId?>">Checklist padrão</a>
             <?php endif; ?>
@@ -57,6 +59,7 @@ if (!function_exists('sidebarClass')) {
                 <a class="<?=sidebarClass('dossier',$sidebarActive)?>" href="/condominium/dossiers?condo=<?=$sidebarCondoId?>">Dossiês digitais</a>
             <?php elseif($sidebarWorkId > 0): ?>
                 <a class="<?=sidebarClass('documents',$sidebarActive)?>" href="/work?id=<?=$sidebarWorkId?>#documentos">Documentos</a>
+                <a class="<?=sidebarClass('diary',$sidebarActive)?>" href="/work/diary?id=<?=$sidebarWorkId?>">Diário da Obra</a>
             <?php endif; ?>
         </div>
 
