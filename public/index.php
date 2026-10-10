@@ -31,6 +31,7 @@ use App\Controllers\CondominiumModuleController;
 use App\Controllers\UserAccessController;
 use App\Controllers\PendingController;
 use App\Controllers\WorkDiaryController;
+use App\Controllers\NonConformityRoutingController;
 use App\Core\Auth;
 use App\Core\WorkAccess;
 
@@ -89,6 +90,7 @@ switch ($path) {
     case '/inspection/pdf': (new InspectionPdfController())->show(); break;
     case '/work/non-conformity/create': (new OperationsController())->createNonConformity(); break;
     case '/work/non-conformity/close': (new OperationsController())->closeNonConformity(); break;
+    case '/work/non-conformity/routing': (new NonConformityRoutingController())->update(); break;
     case '/work/notification/create': (new OperationsController())->createNotification(); break;
     case '/notifications': (new NotificationController())->index(); break;
     case '/work/notification/status': (new NotificationController())->updateStatus(); break;
