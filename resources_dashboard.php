@@ -17,20 +17,21 @@
     <section class="hero">
         <p class="eyebrow">Visão geral</p>
         <h1>Meus empreendimentos</h1>
-        <p>Selecione um condomínio para acompanhar obras, fiscalizações, documentos e pendências.</p>
+        <p>Os condomínios com maior necessidade de atenção operacional aparecem primeiro.</p>
     </section>
 
     <?php if(isset($_GET['photo'])):?><div class="alert success">Foto do condomínio atualizada com sucesso.</div><?php endif;?>
 
     <section class="cards condo-cards">
         <?php foreach ($condominiums as $c): ?>
-            <article class="card condo-card visual-card">
+            <article class="card condo-card visual-card attention-<?=htmlspecialchars($c['attention_level'])?>">
                 <div class="cover-frame condo-cover">
                     <?php if (!empty($c['photo_path'])): ?>
                         <img src="/condominium/photo?id=<?=(int)$c['id']?>" alt="Foto de <?=htmlspecialchars($c['name'])?>">
                     <?php else: ?>
                         <div class="cover-placeholder"><span><?=htmlspecialchars(mb_strtoupper(mb_substr($c['name'], 0, 1)))?></span><small>Adicionar foto do condomínio</small></div>
                     <?php endif; ?>
+                    <?php if((int)$c['critical_nc']>0 || (int)$c['overdue_nc']>0 || (int)$c['restricted']>0):?><span class="attention-badge">Atenção operacional</span><?php endif;?>
                 </div>
                 <div class="visual-card-body">
                     <div class="card-title-row">
@@ -40,14 +41,16 @@
                         </div>
                         <span class="total-pill"><?= (int)$c['total_works'] ?> obras</span>
                     </div>
-                    <div class="metrics compact-metrics">
-                        <span><b><?= (int)$c['in_progress'] ?></b> Em andamento</span>
-                        <span><b><?= (int)$c['authorized'] ?></b> Autorizadas</span>
-                        <span><b><?= (int)$c['notified'] ?></b> Notificadas</span>
-                        <span><b><?= (int)$c['completed'] ?></b> Concluídas</span>
+                    <div class="metrics compact-metrics condo-operational-metrics">
+                        <span><b><?= (int)$c['operational'] ?></b> Operacionais</span>
+                        <span class="<?=((int)$c['open_nc']>0)?'metric-alert':''?>"><b><?= (int)$c['open_nc'] ?></b> NCs abertas</span>
+                        <span class="<?=((int)$c['overdue_nc']>0)?'metric-alert':''?>"><b><?= (int)$c['overdue_nc'] ?></b> NCs vencidas</span>
+                        <span class="<?=((int)$c['restricted']>0)?'metric-alert':''?>"><b><?= (int)$c['restricted'] ?></b> Restritas</span>
                     </div>
+                    <?php if((int)$c['critical_nc']>0 || (int)$c['overdue_works']>0):?><div class="condo-attention-line"><?php if((int)$c['critical_nc']>0):?><span><?=(int)$c['critical_nc']?> NC crítica(s)</span><?php endif;?><?php if((int)$c['overdue_works']>0):?><span><?=(int)$c['overdue_works']?> obra(s) atrasada(s)</span><?php endif;?></div><?php endif;?>
                     <div class="card-actions-row">
                         <a class="button primary" href="/works?condo=<?= (int)$c['id'] ?>">Acessar condomínio</a>
+                        <?php if((int)$c['open_nc']>0):?><a class="button secondary" href="/condominium/pending?condo=<?=(int)$c['id']?>">Pendências</a><?php endif;?>
                     </div>
                     <?php if (!empty($c['can_manage'])): ?>
                         <form class="photo-inline-form" method="post" action="/condominium/photo/upload" enctype="multipart/form-data" style="margin-top:12px">
