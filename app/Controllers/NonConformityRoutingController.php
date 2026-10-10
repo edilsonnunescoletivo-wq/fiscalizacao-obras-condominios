@@ -40,6 +40,13 @@ final class NonConformityRoutingController
         }
 
         $pdo = Database::connection();
+        $routingReady = (bool)$pdo->query("SHOW COLUMNS FROM non_conformities LIKE 'priority'")->fetch()
+            && (bool)$pdo->query("SHOW COLUMNS FROM non_conformities LIKE 'assigned_user_id'")->fetch();
+        if (!$routingReady) {
+            http_response_code(409);
+            exit('O direcionamento de pendências ainda aguarda a atualização controlada do banco de homologação.');
+        }
+
         $stmt = $pdo->prepare('SELECT id,status,priority,assigned_user_id,title FROM non_conformities WHERE id=? AND work_id=?');
         $stmt->execute([$ncId,$workId]);
         $nc = $stmt->fetch();
