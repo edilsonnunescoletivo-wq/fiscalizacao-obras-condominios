@@ -45,6 +45,13 @@ final class InspectionPdfController
         $photoStmt->execute([$inspectionId]);
         $photos = $photoStmt->fetchAll();
 
+        $acceptances = [];
+        if ($pdo->query("SHOW TABLES LIKE 'inspection_acceptances'")->fetchColumn()) {
+            $acceptanceStmt = $pdo->prepare('SELECT signer_type,account_name_snapshot,email_snapshot,typed_name,declaration,signature_method,signature_hash,signed_at FROM inspection_acceptances WHERE inspection_id=? ORDER BY signed_at,id');
+            $acceptanceStmt->execute([$inspectionId]);
+            $acceptances = $acceptanceStmt->fetchAll();
+        }
+
         $checklist = json_decode((string)($inspection['checklist_json'] ?? ''), true);
         if (!is_array($checklist)) $checklist = [];
 
@@ -53,11 +60,16 @@ final class InspectionPdfController
             'WITH_ISSUES'=>'Com apontamentos',
             'CRITICAL'=>'Crítica',
         ];
+        $typeLabels = [
+            'INSPECTOR'=>'Fiscal',
+            'WORK_RESPONSIBLE'=>'Responsável pela obra',
+            'MANAGEMENT'=>'Gestão',
+        ];
         $e = static fn($value): string => htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
 
         $html = '<!doctype html><html><head><meta charset="utf-8"><style>'
             . 'body{font-family:DejaVu Sans,sans-serif;color:#1d2939;font-size:10px;line-height:1.45;margin:26px}'
-            . 'h1{font-size:20px;margin:0 0 2px}.sub{color:#667085;margin-bottom:16px}.box{border:1px solid #d0d5dd;border-radius:7px;padding:10px;margin:8px 0}.grid{width:100%;border-collapse:collapse}.grid td{width:50%;vertical-align:top;padding:5px 8px;border-bottom:1px solid #eaecf0}.label{font-size:8px;text-transform:uppercase;color:#667085}.value{font-size:10px;font-weight:700}.result{display:inline-block;padding:5px 8px;border:1px solid #98a2b3;border-radius:10px;font-weight:700}.section{font-size:13px;border-bottom:1px solid #d0d5dd;padding-bottom:4px;margin:18px 0 8px}.check{width:100%;border-collapse:collapse}.check th,.check td{border:1px solid #e4e7ec;padding:6px;text-align:left}.check th{background:#f9fafb}.ok{font-weight:700}.notes{white-space:pre-wrap}.photos{width:100%;border-collapse:separate;border-spacing:6px}.photo-cell{width:50%;vertical-align:top;border:1px solid #e4e7ec;padding:6px}.photo-cell img{display:block;max-width:100%;max-height:250px;margin:0 auto 5px}.footer{margin-top:20px;border-top:1px solid #d0d5dd;padding-top:7px;color:#667085;font-size:8px}'
+            . 'h1{font-size:20px;margin:0 0 2px}.sub{color:#667085;margin-bottom:16px}.box{border:1px solid #d0d5dd;border-radius:7px;padding:10px;margin:8px 0}.grid{width:100%;border-collapse:collapse}.grid td{width:50%;vertical-align:top;padding:5px 8px;border-bottom:1px solid #eaecf0}.label{font-size:8px;text-transform:uppercase;color:#667085}.value{font-size:10px;font-weight:700}.result{display:inline-block;padding:5px 8px;border:1px solid #98a2b3;border-radius:10px;font-weight:700}.section{font-size:13px;border-bottom:1px solid #d0d5dd;padding-bottom:4px;margin:18px 0 8px}.check{width:100%;border-collapse:collapse}.check th,.check td{border:1px solid #e4e7ec;padding:6px;text-align:left}.check th{background:#f9fafb}.ok{font-weight:700}.notes{white-space:pre-wrap}.photos{width:100%;border-collapse:separate;border-spacing:6px}.photo-cell{width:50%;vertical-align:top;border:1px solid #e4e7ec;padding:6px}.photo-cell img{display:block;max-width:100%;max-height:250px;margin:0 auto 5px}.acceptance{border:1px solid #d0d5dd;border-radius:7px;padding:9px;margin:7px 0}.acceptance-title{font-weight:700;font-size:11px}.acceptance-meta{color:#667085;font-size:8px}.acceptance-hash{font-family:DejaVu Sans Mono,monospace;font-size:7px;word-break:break-all;background:#f8fafc;padding:5px;margin-top:5px}.footer{margin-top:20px;border-top:1px solid #d0d5dd;padding-top:7px;color:#667085;font-size:8px}'
             . '</style></head><body>';
         $html .= '<h1>Relatório de Fiscalização de Obra</h1>';
         $html .= '<div class="sub">Fiscaliza Obras · Vistoria #'.$inspectionId.' · Emitido em '.date('d/m/Y H:i').'</div>';
@@ -101,7 +113,19 @@ final class InspectionPdfController
             $html .= '</table>';
         }
 
-        $html .= '<div class="footer">Relatório gerado automaticamente a partir dos registros da vistoria. O histórico e os arquivos originais permanecem armazenados no sistema conforme as permissões da obra.</div></body></html>';
+        if ($acceptances) {
+            $html .= '<div class="section">Aceites eletrônicos</div>';
+            foreach ($acceptances as $acceptance) {
+                $html .= '<div class="acceptance">'
+                    . '<div class="acceptance-title">'.$e($typeLabels[$acceptance['signer_type']] ?? $acceptance['signer_type']).' · '.$e($acceptance['typed_name']).'</div>'
+                    . '<div class="acceptance-meta">Conta: '.$e($acceptance['account_name_snapshot']).(!empty($acceptance['email_snapshot'])?' · '.$e($acceptance['email_snapshot']):'').' · Registrado em '.$e($acceptance['signed_at']).'</div>'
+                    . '<div>'.$e($acceptance['declaration']).'</div>'
+                    . '<div class="acceptance-hash">'.$e($acceptance['signature_method']).': '.$e($acceptance['signature_hash']).'</div>'
+                    . '</div>';
+            }
+        }
+
+        $html .= '<div class="footer">Relatório gerado automaticamente a partir dos registros da vistoria. O histórico e os arquivos originais permanecem armazenados no sistema conforme as permissões da obra. Aceites eletrônicos simples servem à rastreabilidade interna e não são apresentados pelo sistema como assinatura qualificada ICP-Brasil.</div></body></html>';
 
         $options = new Options();
         $options->set('isRemoteEnabled', false);
