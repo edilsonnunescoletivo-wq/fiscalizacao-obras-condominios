@@ -29,6 +29,7 @@ final class WorksController
             http_response_code(403);
             exit('Acesso não autorizado');
         }
+        $onlyResponsible = in_array('WORK_RESPONSIBLE', $roles, true) && count(array_diff($roles, ['WORK_RESPONSIBLE'])) === 0;
 
         $pdo = Database::connection();
         $stmt = $pdo->prepare('SELECT id, name, photo_path FROM condominiums WHERE id = ? AND active = 1');
@@ -63,7 +64,7 @@ final class WorksController
             FROM works w WHERE w.condominium_id = ?';
         $params = [$condoId];
 
-        if (in_array('WORK_RESPONSIBLE', $roles, true) && count(array_diff($roles, ['WORK_RESPONSIBLE'])) === 0) {
+        if ($onlyResponsible) {
             $baseSql .= ' AND w.responsible_user_id = ?';
             $params[] = $user['id'];
         }
@@ -120,6 +121,21 @@ final class WorksController
             FROM works WHERE condominium_id=?');
         $summaryStmt->execute([$condoId,$condoId,$condoId]);
         $summary = $summaryStmt->fetch() ?: ['total'=>0,'operational'=>0,'in_progress'=>0,'completed'=>0,'suspended'=>0,'embargoed'=>0,'overdue_works'=>0,'open_nc'=>0,'overdue_nc'=>0];
+
+        if ($onlyResponsible) {
+            $summary = ['total'=>0,'operational'=>0,'in_progress'=>0,'completed'=>0,'suspended'=>0,'embargoed'=>0,'overdue_works'=>0,'open_nc'=>0,'overdue_nc'=>0];
+            foreach ($works as $work) {
+                $summary['total']++;
+                if (in_array($work['status'], ['IN_PROGRESS','NOTIFIED','SUSPENDED','EMBARGOED'], true)) $summary['operational']++;
+                if ($work['status'] === 'IN_PROGRESS') $summary['in_progress']++;
+                if ($work['status'] === 'COMPLETED') $summary['completed']++;
+                if ($work['status'] === 'SUSPENDED') $summary['suspended']++;
+                if ($work['status'] === 'EMBARGOED') $summary['embargoed']++;
+                if (!empty($work['risk']['late'])) $summary['overdue_works']++;
+                $summary['open_nc'] += (int)$work['pending_count'];
+                $summary['overdue_nc'] += (int)$work['overdue_nc'];
+            }
+        }
 
         $kanban = [
             'DOCUMENTS' => ['label'=>'Documentação', 'works'=>[]],
