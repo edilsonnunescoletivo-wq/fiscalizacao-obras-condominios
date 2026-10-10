@@ -72,6 +72,17 @@ final class ResponsibleController
         $stmt->execute([$workId]);
         $notifications = $stmt->fetchAll();
 
+        $stmt = $pdo->prepare(
+            'SELECT i.id,i.inspected_at,i.stage,i.notes,i.result,u.name inspector_name,
+                (SELECT COUNT(*) FROM inspection_photos p WHERE p.inspection_id=i.id) photo_count
+             FROM inspections i
+             JOIN users u ON u.id=i.inspector_user_id
+             WHERE i.work_id=?
+             ORDER BY i.inspected_at DESC,i.id DESC'
+        );
+        $stmt->execute([$workId]);
+        $inspections = $stmt->fetchAll();
+
         $stmt = $pdo->prepare('SELECT ct.*,u.name inspector_name FROM work_completion_terms ct JOIN users u ON u.id=ct.inspector_user_id WHERE ct.work_id=? LIMIT 1');
         $stmt->execute([$workId]);
         $completion = $stmt->fetch() ?: null;
