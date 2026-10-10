@@ -14,6 +14,7 @@ use App\Controllers\AccessController;
 use App\Controllers\NotificationController;
 use App\Controllers\NotificationPdfController;
 use App\Controllers\InspectionPdfController;
+use App\Controllers\InspectionAcceptanceController;
 use App\Controllers\CompletionController;
 use App\Controllers\CompletionPdfController;
 use App\Controllers\DossierPdfController;
@@ -88,6 +89,8 @@ switch ($path) {
     case '/inspection/new': (new InspectionFormController())->show(); break;
     case '/inspection/create-dynamic': (new InspectionFormController())->create(); break;
     case '/inspection/pdf': (new InspectionPdfController())->show(); break;
+    case '/inspection/acceptance': (new InspectionAcceptanceController())->show(); break;
+    case '/inspection/acceptance/sign': (new InspectionAcceptanceController())->sign(); break;
     case '/work/non-conformity/create': (new OperationsController())->createNonConformity(); break;
     case '/work/non-conformity/close': (new OperationsController())->closeNonConformity(); break;
     case '/work/non-conformity/routing': (new NonConformityRoutingController())->update(); break;
