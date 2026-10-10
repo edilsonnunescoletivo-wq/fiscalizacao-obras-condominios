@@ -13,6 +13,7 @@ use App\Controllers\MediaController;
 use App\Controllers\AccessController;
 use App\Controllers\NotificationController;
 use App\Controllers\NotificationPdfController;
+use App\Controllers\InspectionPdfController;
 use App\Controllers\CompletionController;
 use App\Controllers\CompletionPdfController;
 use App\Controllers\DossierPdfController;
@@ -85,6 +86,7 @@ switch ($path) {
     case '/work/inspection/create': (new InspectionFormController())->create(); break;
     case '/inspection/new': (new InspectionFormController())->show(); break;
     case '/inspection/create-dynamic': (new InspectionFormController())->create(); break;
+    case '/inspection/pdf': (new InspectionPdfController())->show(); break;
     case '/work/non-conformity/create': (new OperationsController())->createNonConformity(); break;
     case '/work/non-conformity/close': (new OperationsController())->closeNonConformity(); break;
     case '/work/notification/create': (new OperationsController())->createNotification(); break;
