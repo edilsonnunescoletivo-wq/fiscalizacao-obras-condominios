@@ -47,7 +47,7 @@ final class InspectionPdfController
 
         $acceptances = [];
         if ($pdo->query("SHOW TABLES LIKE 'inspection_acceptances'")->fetchColumn()) {
-            $acceptanceStmt = $pdo->prepare('SELECT signer_type,account_name_snapshot,email_snapshot,typed_name,declaration,signature_method,signature_hash,signed_at FROM inspection_acceptances WHERE inspection_id=? ORDER BY signed_at,id');
+            $acceptanceStmt = $pdo->prepare('SELECT signer_type,account_name_snapshot,typed_name,declaration,signature_method,signature_hash,signed_at FROM inspection_acceptances WHERE inspection_id=? ORDER BY signed_at,id');
             $acceptanceStmt->execute([$inspectionId]);
             $acceptances = $acceptanceStmt->fetchAll();
         }
@@ -118,7 +118,7 @@ final class InspectionPdfController
             foreach ($acceptances as $acceptance) {
                 $html .= '<div class="acceptance">'
                     . '<div class="acceptance-title">'.$e($typeLabels[$acceptance['signer_type']] ?? $acceptance['signer_type']).' · '.$e($acceptance['typed_name']).'</div>'
-                    . '<div class="acceptance-meta">Conta: '.$e($acceptance['account_name_snapshot']).(!empty($acceptance['email_snapshot'])?' · '.$e($acceptance['email_snapshot']):'').' · Registrado em '.$e($acceptance['signed_at']).'</div>'
+                    . '<div class="acceptance-meta">Conta identificada como '.$e($acceptance['account_name_snapshot']).' · Registrado em '.$e($acceptance['signed_at']).'</div>'
                     . '<div>'.$e($acceptance['declaration']).'</div>'
                     . '<div class="acceptance-hash">'.$e($acceptance['signature_method']).': '.$e($acceptance['signature_hash']).'</div>'
                     . '</div>';
