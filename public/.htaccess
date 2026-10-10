@@ -1,0 +1,9 @@
+Options -Indexes
+RewriteEngine On
+
+# Permitir validacao e renovacao do Let's Encrypt sem passar pelo front controller.
+RewriteRule ^\.well-known/acme-challenge/ - [L]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [QSA,L]
