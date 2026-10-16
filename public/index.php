@@ -10,6 +10,7 @@ use App\Controllers\WorksController;
 use App\Controllers\WorkDetailController;
 use App\Controllers\OperationsController;
 use App\Controllers\MediaController;
+use App\Controllers\CondominiumPhotoController;
 use App\Controllers\AccessController;
 use App\Controllers\NotificationController;
 use App\Controllers\NotificationPdfController;
@@ -102,6 +103,7 @@ switch ($path) {
     case '/work/non-conformity/correction/review': (new CorrectionController())->review(); break;
     case '/work/non-conformity/evidence': (new CorrectionController())->evidence(); break;
     case '/condominium/photo/upload': (new MediaController())->uploadCondominiumPhoto(); break;
+    case '/condominium/photo/remove': (new CondominiumPhotoController())->remove(); break;
     case '/condominium/photo': (new MediaController())->condominiumPhoto(); break;
     case '/work/photo/upload': (new MediaController())->uploadWorkPhoto(); break;
     case '/work/photo': (new MediaController())->workPhoto(); break;
