@@ -21,6 +21,7 @@
     </section>
 
     <?php if(isset($_GET['photo'])):?><div class="alert success">Foto do condomínio atualizada com sucesso.</div><?php endif;?>
+    <?php if(isset($_GET['photo_removed'])):?><div class="alert success">Foto do condomínio removida com sucesso.</div><?php endif;?>
 
     <section class="cards condo-cards">
         <?php foreach ($condominiums as $c): ?>
@@ -53,13 +54,23 @@
                         <?php if((int)$c['open_nc']>0):?><a class="button secondary" href="/condominium/pending?condo=<?=(int)$c['id']?>">Pendências</a><?php endif;?>
                     </div>
                     <?php if (!empty($c['can_manage'])): ?>
-                        <form class="photo-inline-form" method="post" action="/condominium/photo/upload" enctype="multipart/form-data" style="margin-top:12px">
-                            <input type="hidden" name="_token" value="<?=htmlspecialchars(Csrf::token())?>">
-                            <input type="hidden" name="condominium_id" value="<?=(int)$c['id']?>">
-                            <input type="hidden" name="return_to" value="dashboard">
-                            <label class="button secondary file-button">Escolher foto<input type="file" name="photo" accept="image/jpeg,image/png,image/webp" required></label>
-                            <button class="button secondary" type="submit">Salvar foto</button>
-                        </form>
+                        <div class="inline-actions" style="margin-top:12px;align-items:flex-end;flex-wrap:wrap">
+                            <form class="photo-inline-form" method="post" action="/condominium/photo/upload" enctype="multipart/form-data">
+                                <input type="hidden" name="_token" value="<?=htmlspecialchars(Csrf::token())?>">
+                                <input type="hidden" name="condominium_id" value="<?=(int)$c['id']?>">
+                                <input type="hidden" name="return_to" value="dashboard">
+                                <label class="button secondary file-button"><?=!empty($c['photo_path'])?'Alterar foto':'Escolher foto'?><input type="file" name="photo" accept="image/jpeg,image/png,image/webp" required></label>
+                                <button class="button secondary" type="submit">Salvar foto</button>
+                            </form>
+                            <?php if(!empty($c['photo_path'])):?>
+                                <form method="post" action="/condominium/photo/remove" onsubmit="return confirm('Remover a foto de capa deste condomínio?');">
+                                    <input type="hidden" name="_token" value="<?=htmlspecialchars(Csrf::token())?>">
+                                    <input type="hidden" name="condominium_id" value="<?=(int)$c['id']?>">
+                                    <input type="hidden" name="return_to" value="dashboard">
+                                    <button class="button secondary" type="submit">Remover foto</button>
+                                </form>
+                            <?php endif;?>
+                        </div>
                     <?php endif; ?>
                 </div>
             </article>
