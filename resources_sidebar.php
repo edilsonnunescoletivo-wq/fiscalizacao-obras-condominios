@@ -33,6 +33,7 @@ if (!function_exists('sidebarClass')) {
             <?php if($sidebarCondoId > 0): ?>
                 <a class="<?=sidebarClass('condo',$sidebarActive)?>" href="/works?condo=<?=$sidebarCondoId?>">Painel do condomínio</a>
                 <a class="<?=sidebarClass('works',$sidebarActive)?>" href="/works?condo=<?=$sidebarCondoId?>#obras">Obras</a>
+                <?php if(!$sidebarIsResponsible):?><a class="<?=sidebarClass('indices',$sidebarActive)?>" href="/indices?condo=<?=$sidebarCondoId?>">Índices</a><?php endif; ?>
             <?php endif; ?>
         </div>
 
