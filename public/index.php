@@ -7,6 +7,7 @@ require dirname(__DIR__) . '/config/bootstrap.php';
 use App\Controllers\AuthController;
 use App\Controllers\DashboardController;
 use App\Controllers\WorksController;
+use App\Controllers\IndicesController;
 use App\Controllers\WorkDetailController;
 use App\Controllers\OperationsController;
 use App\Controllers\MediaController;
@@ -70,6 +71,7 @@ switch ($path) {
     case '/responsible/document/upload': (new ResponsibleController())->uploadDocument(); break;
     case '/works': (new WorksController())->index(); break;
     case '/works/create': (new WorksController())->create(); break;
+    case '/indices': (new IndicesController())->index(); break;
     case '/condominium/inspections': (new CondominiumModuleController())->inspections(); break;
     case '/condominium/non-conformities': (new CondominiumModuleController())->nonConformities(); break;
     case '/condominium/pending': (new PendingController())->index(); break;
