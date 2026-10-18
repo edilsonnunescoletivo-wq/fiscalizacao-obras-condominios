@@ -1,0 +1,105 @@
+name: Publicar Fiscaliza Obras - Homologacao
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmacao:
+        description: 'Digite PUBLICAR para enviar somente os 6 arquivos da atualizacao a homologacao'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fiscaliza-obras-homologacao
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    if: ${{ github.ref == 'refs/heads/main' && inputs.confirmacao == 'PUBLICAR' }}
+    name: Atualizar apenas Fiscaliza Obras (homologacao)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      FTP_HOST: ${{ secrets.HOST }}
+      FTP_USER: ${{ secrets.USER }}
+      FTP_PASS: ${{ secrets.PASS }}
+    steps:
+      - name: Verificar credenciais protegidas no GitHub
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$FTP_HOST" || -z "$FTP_USER" || -z "$FTP_PASS" ]]; then
+            echo "::error::Configure os repository secrets HOST, USER e PASS em Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
+      - name: Baixar versao validada sem mesclar na main
+        uses: actions/checkout@v4
+        with:
+          ref: 736f161cb6c990805be1ecfb977dfbeb57bfa5ef
+          persist-credentials: false
+
+      - name: Validar sintaxe PHP dos arquivos alterados
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l app/Controllers/IndicesController.php
+          php -l resources_indices.php
+          php -l resources_sidebar.php
+          php -l resources_works.php
+          php -l public/index.php
+
+      - name: Preparar exclusivamente os 6 arquivos da atualizacao
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p _deploy/app/Controllers _deploy/public/assets/css
+          cp app/Controllers/IndicesController.php _deploy/app/Controllers/
+          cp resources_indices.php resources_sidebar.php resources_works.php _deploy/
+          cp public/assets/css/insights-v4.css _deploy/public/assets/css/
+          cp public/index.php _deploy/public/
+          test "$(find _deploy -type f | wc -l)" -eq 6
+          echo "Pacote pronto: 6 arquivos; nenhum arquivo .env, banco, upload ou dado de producao."
+
+      - name: Instalar cliente FTP seguro
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq lftp
+
+      - name: Enviar por FTPS somente para fiscalizacao-homolog
+        shell: bash
+        working-directory: _deploy
+        run: |
+          set -euo pipefail
+          lftp -u "$FTP_USER","$FTP_PASS" "ftp://$FTP_HOST" <<'LFTP'
+          set cmd:fail-exit yes
+          set net:max-retries 2
+          set net:timeout 20
+          set ftp:passive-mode yes
+          set ftp:ssl-force yes
+          set ftp:ssl-protect-data yes
+          set ssl:verify-certificate yes
+          set xfer:clobber yes
+          cd public_html/fiscalizacao-homolog
+          mkdir -p app/Controllers
+          mkdir -p public/assets/css
+          put -o app/Controllers/IndicesController.php app/Controllers/IndicesController.php
+          put -o resources_indices.php resources_indices.php
+          put -o resources_sidebar.php resources_sidebar.php
+          put -o resources_works.php resources_works.php
+          put -o public/assets/css/insights-v4.css public/assets/css/insights-v4.css
+          put -o public/index.php public/index.php
+          bye
+          LFTP
+
+      - name: Confirmar arquivo publicado no dominio de homologacao
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --max-time 30 --retry 3 \
+            'https://fiscalizacao-homolog.sindicosgestao.com.br/assets/css/insights-v4.css' \
+            | grep -Fq '.project-tabs{'
+          echo 'CSS atualizado esta disponivel no dominio da homologacao.'
