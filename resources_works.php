@@ -24,6 +24,7 @@ $urlFor=static function(array $changes=[]) use($baseParams): string {
     <title>Obras - <?=htmlspecialchars($condominium['name'])?></title>
     <link rel="stylesheet" href="/assets/css/app.css">
     <link rel="stylesheet" href="/assets/css/ui-v2.css">
+    <link rel="stylesheet" href="/assets/css/insights-v4.css">
 </head>
 <body class="app-body">
 <div class="shell">
@@ -41,6 +42,11 @@ $urlFor=static function(array $changes=[]) use($baseParams): string {
         <?php if(isset($_GET['created'])):?><div class="alert success">Obra cadastrada com sucesso.</div><?php endif;?>
         <?php if(isset($_GET['photo'])):?><div class="alert success">Foto da obra atualizada com sucesso.</div><?php endif;?>
         <?php if(isset($_GET['condo_photo'])):?><div class="alert success">Foto do condomínio atualizada com sucesso.</div><?php endif;?>
+
+        <nav class="project-tabs" aria-label="Áreas do condomínio">
+            <a href="/works?condo=<?=(int)$condominium['id']?>#obras" class="active" aria-current="page">Obras</a>
+            <a href="/indices?condo=<?=(int)$condominium['id']?>">Índices</a>
+        </nav>
 
         <section class="condo-summary-card">
             <div class="condo-summary-cover">
@@ -85,7 +91,7 @@ $urlFor=static function(array $changes=[]) use($baseParams): string {
             <a href="<?=$urlFor(['scope'=>'completed','view'=>$viewMode])?>" class="operational-kpi <?=$scope==='completed'?'selected':''?>"><small>Concluídas</small><strong><?=(int)$summary['completed']?></strong><span>Obras encerradas</span></a>
         </section>
 
-        <section class="panel" id="obras">
+        <section class="panel works-panel-v4" id="obras">
             <div class="panel-header works-header">
                 <div><h2>Obras</h2><p>Por padrão, as obras com maior risco aparecem primeiro.</p></div>
                 <div class="view-switch" role="group" aria-label="Visualização">
@@ -161,10 +167,17 @@ $urlFor=static function(array $changes=[]) use($baseParams): string {
                                     <div><small>Responsável técnico</small><strong><?=htmlspecialchars($work['technical_name']?:'-')?></strong></div>
                                     <div><small>Período</small><strong><?=htmlspecialchars($work['planned_start']?:'-')?> → <?=htmlspecialchars($work['planned_end']?:'-')?></strong></div>
                                 </div>
-                                <div class="work-mini-metrics">
-                                    <span class="<?=((int)$work['pending_count']>0)?'metric-alert':''?>"><b><?=(int)$work['pending_count']?></b> Pendências</span>
-                                    <span><b><?=(int)$work['inspections_count']?></b> Fiscalizações</span>
-                                    <span><b><?=(int)$work['notifications_count']?></b> Notificações</span>
+                                <div class="work-card-performance" aria-label="Resumo operacional e risco da obra">
+                                    <div class="card-metric-stack">
+                                        <span class="card-performance-label">Resumo da obra</span>
+                                        <div><span><i class="metric-marker red"></i>Pendências abertas</span><strong><?=(int)$work['pending_count']?></strong></div>
+                                        <div><span><i class="metric-marker amber"></i>Pendências vencidas</span><strong><?=(int)$work['overdue_nc']?></strong></div>
+                                        <div><span><i class="metric-marker"></i>Fiscalizações</span><strong><?=(int)$work['inspections_count']?></strong></div>
+                                        <div><span><i class="metric-marker"></i>Notificações</span><strong><?=(int)$work['notifications_count']?></strong></div>
+                                    </div>
+                                    <div class="work-risk-ring <?=$riskClass($work['risk'])?>" style="--risk-score:<?=(int)$work['risk']['score']?>" aria-label="Índice de risco <?=(int)$work['risk']['score']?> de 100">
+                                        <div class="work-risk-ring-inner"><strong><?=(int)$work['risk']['score']?></strong><span>Risco / 100</span></div>
+                                    </div>
                                 </div>
                                 <div class="last-activity-row"><small>Última atividade</small><strong><?=htmlspecialchars($work['last_activity_at'])?></strong></div>
                                 <div class="card-actions-row">
