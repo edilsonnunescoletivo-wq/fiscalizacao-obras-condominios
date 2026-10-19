@@ -1,0 +1,13 @@
+<?php
+use App\Core\Csrf;
+$statusLabels = [
+    'DRAFT'=>'Rascunho','WAITING_DOCUMENTS'=>'Aguardando documentos','UNDER_REVIEW'=>'Em análise','CORRECTION_REQUIRED'=>'Correção necessária','TECHNICALLY_APPROVED'=>'Aprovada tecnicamente','AUTHORIZED'=>'Autorizada','IN_PROGRESS'=>'Em andamento','NOTIFIED'=>'Notificada','SUSPENDED'=>'Suspensa','EMBARGOED'=>'Embargada','COMPLETION_INSPECTION'=>'Vistoria de conclusão','COMPLETED'=>'Concluída','CANCELLED'=>'Cancelada',
+];
+?>
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Minhas obras</title><link rel="stylesheet" href="/assets/css/app.css"></head>
+<body class="app-body"><div class="shell">
+<aside class="sidebar"><div class="brand">Fiscaliza Obras</div><nav><a class="active" href="/responsible">Minhas obras</a></nav><form method="post" action="/logout" style="margin-top:24px"><input type="hidden" name="_token" value="<?=htmlspecialchars(Csrf::token())?>"><button class="button secondary" type="submit">Sair</button></form></aside>
+<main class="content"><header class="topbar"><div><p class="eyebrow">Área do responsável</p><h1>Minhas obras</h1><p class="muted">Acompanhe documentos, correções, notificações e conclusão em um único lugar.</p></div></header>
+<?php if(!$works):?><section class="panel"><div class="empty-state"><h3>Nenhuma obra vinculada</h3><p>Quando a administração vincular uma obra à sua conta, ela aparecerá aqui.</p></div></section><?php else:?><div class="card-grid">
+<?php foreach($works as $work):?><section class="panel"><div class="panel-header"><div><p class="eyebrow"><?=htmlspecialchars($work['condominium_name'])?></p><h2>Unidade <?=htmlspecialchars($work['unit'])?></h2><p><?=htmlspecialchars($work['work_type'] ?: 'Obra')?></p></div><span class="badge"><?=htmlspecialchars($statusLabels[$work['status']] ?? $work['status'])?></span></div><div class="info-grid"><div><small>Proprietário</small><strong><?=htmlspecialchars($work['owner_name'])?></strong></div><div><small>Prazo previsto</small><strong><?=htmlspecialchars($work['planned_end'] ?: '-')?></strong></div><div><small>Correções pendentes</small><strong><?=(int)$work['pending_corrections']?></strong></div><div><small>Documentos com correção</small><strong><?=(int)$work['document_corrections']?></strong></div><div><small>Notificações ativas</small><strong><?=(int)$work['active_notifications']?></strong></div></div><div class="form-actions"><a class="button primary" href="/responsible/work?id=<?=(int)$work['id']?>">Acompanhar obra</a></div></section><?php endforeach;?>
+</div><?php endif;?></main></div></body></html>
