@@ -1,0 +1,1 @@
+# Mantém o diretório de uploads no repositório; arquivos enviados são ignorados pelo .gitignore.
