@@ -30,24 +30,24 @@ if (!function_exists('sidebarClass')) {
     <nav class="sidebar-nav">
         <div class="sidebar-group">
             <button type="button" class="sidebar-group-title sidebar-group-toggle" aria-expanded="true">Visão geral<span class="sidebar-chevron" aria-hidden="true">⌃</span></button>
-            <a class="<?=sidebarClass('dashboard',$sidebarActive)?>" href="/">Todos os condomínios</a>
+            <a class="<?=sidebarClass('dashboard',$sidebarActive)?>" href="/"><svg class="nav-icon" aria-hidden="true"><use href="#fo-building-2"></use></svg><span class="nav-label">Todos os condomínios</span></a>
             <?php if($sidebarCondoId > 0): ?>
-                <a class="<?=sidebarClass('condo',$sidebarActive)?>" href="/works?condo=<?=$sidebarCondoId?>">Painel do condomínio</a>
-                <a class="<?=sidebarClass('works',$sidebarActive)?>" href="/works?condo=<?=$sidebarCondoId?>#obras">Obras</a>
-                <?php if(!$sidebarIsResponsible):?><a class="<?=sidebarClass('indices',$sidebarActive)?>" href="/indices?condo=<?=$sidebarCondoId?>">Índices</a><?php endif; ?>
+                <a class="<?=sidebarClass('condo',$sidebarActive)?>" href="/works?condo=<?=$sidebarCondoId?>"><svg class="nav-icon" aria-hidden="true"><use href="#fo-layout-dashboard"></use></svg><span class="nav-label">Painel do condomínio</span></a>
+                <a class="<?=sidebarClass('works',$sidebarActive)?>" href="/works?condo=<?=$sidebarCondoId?>#obras"><svg class="nav-icon" aria-hidden="true"><use href="#fo-hard-hat"></use></svg><span class="nav-label">Obras</span></a>
+                <?php if(!$sidebarIsResponsible):?><a class="<?=sidebarClass('indices',$sidebarActive)?>" href="/indices?condo=<?=$sidebarCondoId?>"><svg class="nav-icon" aria-hidden="true"><use href="#fo-chart-no-axes-column"></use></svg><span class="nav-label">Índices</span></a><?php endif; ?>
             <?php endif; ?>
         </div>
 
         <?php if($sidebarCondoId > 0 && $sidebarCanInspect): ?>
         <div class="sidebar-group">
             <button type="button" class="sidebar-group-title sidebar-group-toggle" aria-expanded="true">Fiscalização<span class="sidebar-chevron" aria-hidden="true">⌃</span></button>
-            <a class="<?=sidebarClass('inspections',$sidebarActive)?>" href="/condominium/inspections?condo=<?=$sidebarCondoId?>">Fiscalizações</a>
-            <a class="<?=sidebarClass('pending',$sidebarActive)?>" href="/condominium/pending?condo=<?=$sidebarCondoId?>">Central de Pendências</a>
-            <a class="<?=sidebarClass('corrections',$sidebarActive)?>" href="/condominium/non-conformities?condo=<?=$sidebarCondoId?>">Não conformidades / Correções</a>
-            <a class="<?=sidebarClass('notifications',$sidebarActive)?>" href="/condominium/notifications?condo=<?=$sidebarCondoId?>">Notificações</a>
-            <?php if($sidebarWorkId > 0): ?><a class="<?=sidebarClass('diary',$sidebarActive)?>" href="/work/diary?id=<?=$sidebarWorkId?>">Diário da Obra</a><?php endif; ?>
+            <a class="<?=sidebarClass('inspections',$sidebarActive)?>" href="/condominium/inspections?condo=<?=$sidebarCondoId?>"><svg class="nav-icon" aria-hidden="true"><use href="#fo-clipboard-check"></use></svg><span class="nav-label">Fiscalizações</span></a>
+            <a class="<?=sidebarClass('pending',$sidebarActive)?>" href="/condominium/pending?condo=<?=$sidebarCondoId?>"><svg class="nav-icon" aria-hidden="true"><use href="#fo-list-todo"></use></svg><span class="nav-label">Central de Pendências</span></a>
+            <a class="<?=sidebarClass('corrections',$sidebarActive)?>" href="/condominium/non-conformities?condo=<?=$sidebarCondoId?>"><svg class="nav-icon" aria-hidden="true"><use href="#fo-alert-triangle"></use></svg><span class="nav-label">Não conformidades / Correções</span></a>
+            <a class="<?=sidebarClass('notifications',$sidebarActive)?>" href="/condominium/notifications?condo=<?=$sidebarCondoId?>"><svg class="nav-icon" aria-hidden="true"><use href="#fo-bell"></use></svg><span class="nav-label">Notificações</span></a>
+            <?php if($sidebarWorkId > 0): ?><a class="<?=sidebarClass('diary',$sidebarActive)?>" href="/work/diary?id=<?=$sidebarWorkId?>"><svg class="nav-icon" aria-hidden="true"><use href="#fo-book-open"></use></svg><span class="nav-label">Diário da Obra</span></a><?php endif; ?>
             <?php if($sidebarCanManage): ?>
-                <a class="<?=sidebarClass('checklist-preset',$sidebarActive)?>" href="/settings/checklist-preset?condo=<?=$sidebarCondoId?>">Checklist padrão</a>
+                <a class="<?=sidebarClass('checklist-preset',$sidebarActive)?>" href="/settings/checklist-preset?condo=<?=$sidebarCondoId?>"><svg class="nav-icon" aria-hidden="true"><use href="#fo-list-checks"></use></svg><span class="nav-label">Checklist padrão</span></a>
             <?php endif; ?>
         </div>
         <?php endif; ?>
@@ -56,25 +56,25 @@ if (!function_exists('sidebarClass')) {
         <div class="sidebar-group">
             <button type="button" class="sidebar-group-title sidebar-group-toggle" aria-expanded="true">Documentação<span class="sidebar-chevron" aria-hidden="true">⌃</span></button>
             <?php if($sidebarCanInspect): ?>
-                <a class="<?=sidebarClass('documents',$sidebarActive)?>" href="/condominium/documents?condo=<?=$sidebarCondoId?>">Documentos</a>
-                <a class="<?=sidebarClass('completion',$sidebarActive)?>" href="/condominium/completions?condo=<?=$sidebarCondoId?>">Conclusões</a>
-                <a class="<?=sidebarClass('dossier',$sidebarActive)?>" href="/condominium/dossiers?condo=<?=$sidebarCondoId?>">Dossiês digitais</a>
+                <a class="<?=sidebarClass('documents',$sidebarActive)?>" href="/condominium/documents?condo=<?=$sidebarCondoId?>"><svg class="nav-icon" aria-hidden="true"><use href="#fo-file-text"></use></svg><span class="nav-label">Documentos</span></a>
+                <a class="<?=sidebarClass('completion',$sidebarActive)?>" href="/condominium/completions?condo=<?=$sidebarCondoId?>"><svg class="nav-icon" aria-hidden="true"><use href="#fo-badge-check"></use></svg><span class="nav-label">Conclusões</span></a>
+                <a class="<?=sidebarClass('dossier',$sidebarActive)?>" href="/condominium/dossiers?condo=<?=$sidebarCondoId?>"><svg class="nav-icon" aria-hidden="true"><use href="#fo-folders"></use></svg><span class="nav-label">Dossiês digitais</span></a>
             <?php elseif($sidebarWorkId > 0): ?>
-                <a class="<?=sidebarClass('documents',$sidebarActive)?>" href="/work?id=<?=$sidebarWorkId?>#documentos">Documentos</a>
-                <a class="<?=sidebarClass('diary',$sidebarActive)?>" href="/work/diary?id=<?=$sidebarWorkId?>">Diário da Obra</a>
+                <a class="<?=sidebarClass('documents',$sidebarActive)?>" href="/work?id=<?=$sidebarWorkId?>#documentos"><svg class="nav-icon" aria-hidden="true"><use href="#fo-file-text"></use></svg><span class="nav-label">Documentos</span></a>
+                <a class="<?=sidebarClass('diary',$sidebarActive)?>" href="/work/diary?id=<?=$sidebarWorkId?>"><svg class="nav-icon" aria-hidden="true"><use href="#fo-book-open"></use></svg><span class="nav-label">Diário da Obra</span></a>
             <?php endif; ?>
         </div>
 
         <?php if($sidebarCanInspect): ?>
         <div class="sidebar-group">
             <button type="button" class="sidebar-group-title sidebar-group-toggle" aria-expanded="true">Gestão<span class="sidebar-chevron" aria-hidden="true">⌃</span></button>
-            <a class="<?=sidebarClass('reports',$sidebarActive)?>" href="/reports?condo=<?=$sidebarCondoId?>">Relatórios</a>
-            <a class="<?=sidebarClass('fiscal',$sidebarActive)?>" href="/fiscal-panel?condo=<?=$sidebarCondoId?>">Painel do Fiscal</a>
+            <a class="<?=sidebarClass('reports',$sidebarActive)?>" href="/reports?condo=<?=$sidebarCondoId?>"><svg class="nav-icon" aria-hidden="true"><use href="#fo-chart-column"></use></svg><span class="nav-label">Relatórios</span></a>
+            <a class="<?=sidebarClass('fiscal',$sidebarActive)?>" href="/fiscal-panel?condo=<?=$sidebarCondoId?>"><svg class="nav-icon" aria-hidden="true"><use href="#fo-shield-check"></use></svg><span class="nav-label">Painel do Fiscal</span></a>
             <?php if($sidebarCanManageUsers): ?>
-                <a class="<?=sidebarClass('users',$sidebarActive)?>" href="/users?condo=<?=$sidebarCondoId?>">Usuários / Permissões</a>
+                <a class="<?=sidebarClass('users',$sidebarActive)?>" href="/users?condo=<?=$sidebarCondoId?>"><svg class="nav-icon" aria-hidden="true"><use href="#fo-users"></use></svg><span class="nav-label">Usuários / Permissões</span></a>
             <?php endif; ?>
             <?php if($sidebarCanManage): ?>
-                <a class="<?=sidebarClass('settings',$sidebarActive)?>" href="/settings?condo=<?=$sidebarCondoId?>">Configurações do condomínio</a>
+                <a class="<?=sidebarClass('settings',$sidebarActive)?>" href="/settings?condo=<?=$sidebarCondoId?>"><svg class="nav-icon" aria-hidden="true"><use href="#fo-settings"></use></svg><span class="nav-label">Configurações do condomínio</span></a>
             <?php endif; ?>
         </div>
         <?php endif; ?>
