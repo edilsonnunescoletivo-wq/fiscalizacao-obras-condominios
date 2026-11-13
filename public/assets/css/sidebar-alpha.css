@@ -1,0 +1,29 @@
+/* Menu lateral inspirado na estrutura visual do Alpha Aprova; identidade Fiscaliza Obras. */
+.shell{grid-template-columns:292px minmax(0,1fr)}
+.sidebar{background:#fff;color:#343b45;padding:0 19px 20px;border-right:1px solid #eaedf0;box-shadow:2px 0 10px rgba(23,31,44,.025);scrollbar-width:thin;scrollbar-color:#d9dfe5 transparent}
+.sidebar-icon-sprite{position:absolute;width:0;height:0;overflow:hidden}
+.sidebar-head{min-height:136px;border-bottom:1px solid #f0f1f3;margin:0 -19px 20px;padding:24px 28px 18px;align-items:center}
+.sidebar-head .brand{padding:0;letter-spacing:-1.3px;font-size:29px;font-weight:400;white-space:nowrap;line-height:1.2}
+.brand-primary{font-weight:650;color:#242831}.brand-secondary{font-weight:300;color:#949aa3;margin-left:4px}
+.sidebar-nav{gap:17px}
+.sidebar-group{gap:4px}
+.sidebar-group-title.sidebar-group-toggle{display:flex;align-items:center;justify-content:space-between;width:100%;margin:7px 0 4px;padding:10px 12px;border:0;border-radius:8px;background:transparent;color:#7b818a;font-size:14px;font-weight:400;letter-spacing:0;text-transform:none;line-height:1.4;text-align:left;cursor:pointer}
+.sidebar-group-title.sidebar-group-toggle:hover{background:#f8f9fa;color:#404650}
+.sidebar-chevron{font-size:18px;font-weight:400;color:#9aa1aa;line-height:1;transition:transform .18s ease}
+.sidebar-group.is-collapsed .sidebar-chevron{transform:rotate(180deg)}
+.sidebar-group.is-collapsed>a,.sidebar-group.is-collapsed>form{display:none}
+.sidebar nav a,.sidebar-nav a{display:flex;align-items:center;gap:15px;min-height:49px;padding:11px 13px;border-radius:10px;color:#3b424c;font-size:14px;font-weight:400;line-height:1.35;transition:background .15s ease,color .15s ease}
+.sidebar nav a:hover,.sidebar-nav a:hover{background:#f5f7f8;color:#222831}
+.sidebar nav a.active,.sidebar-nav a.active{background:#f0f3f4;color:#171d25;font-weight:550}
+.nav-icon{width:22px;height:22px;flex:0 0 22px;stroke:#a0a6af;color:#a0a6af;fill:none}
+.sidebar a.active .nav-icon,.sidebar a:hover .nav-icon{stroke:#343b46;color:#343b46}
+.nav-label{min-width:0}
+.sidebar-bottom-group{border-top:1px solid #edf0f3;padding-top:14px}
+.sidebar-logout button{display:flex;gap:15px;align-items:center;min-height:49px;padding:11px 13px;background:transparent;color:#555e69;font-size:14px;border-radius:10px}
+.sidebar-logout button:hover{background:#fff0f0;color:#b42318}
+.sidebar-logout button:hover .nav-icon{stroke:#b42318}
+.sidebar-mobile-toggle{background:#fff;color:#343b45;border:1px solid #dbe1e7;box-shadow:0 8px 25px rgba(16,24,40,.13)}
+.sidebar-close{background:#f2f4f7;color:#667085}
+@media(max-width:850px){.shell{grid-template-columns:1fr}.sidebar{display:block;position:fixed;top:0;left:0;width:min(365px,88vw);height:100dvh;z-index:80;overflow-y:auto;transform:translateX(-105%);transition:transform .22s ease;box-shadow:14px 0 35px rgba(0,0,0,.12)}body.sidebar-open .sidebar{transform:translateX(0)}body.sidebar-open:before{content:"";position:fixed;inset:0;background:rgba(27,33,44,.53);z-index:75}.sidebar-close{display:inline-grid}.sidebar-mobile-toggle{display:block}}
+@media(min-width:851px){.sidebar-close{display:none}}
+@media(prefers-reduced-motion:reduce){.sidebar,.sidebar-chevron,.sidebar nav a{transition:none}}
