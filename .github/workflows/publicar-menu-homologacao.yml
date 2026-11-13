@@ -1,0 +1,92 @@
+name: Publicar novo menu - Fiscaliza Obras Homologacao
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publicar-menu-homologacao.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fiscaliza-obras-homologacao
+  cancel-in-progress: false
+
+jobs:
+  publicar-menu:
+    if: github.ref == 'refs/heads/main'
+    name: Enviar somente menu e CSS para homologacao
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      FTP_HOST: ${{ secrets.HOST }}
+      FTP_USER: ${{ secrets.USER }}
+      FTP_PASS: ${{ secrets.PASS }}
+    steps:
+      - name: Validar secrets de publicacao
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$FTP_HOST" || -z "$FTP_USER" || -z "$FTP_PASS" ]]; then
+            echo "::error::Credenciais HOST, USER e PASS nao estao configuradas."
+            exit 1
+          fi
+
+      - name: Baixar apenas a versao aprovada da branch de desenvolvimento
+        uses: actions/checkout@v4
+        with:
+          ref: 2cdeeb4c634f7ea30231fbd8e80e06394a23ae12
+          persist-credentials: false
+
+      - name: Validar PHP e pacote restrito
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l resources_sidebar.php
+          grep -Fq 'sidebar-group-toggle' resources_sidebar.php
+          grep -Fq '.brand-primary{' public/assets/css/ui-v2.css
+          mkdir -p _deploy/public/assets/css
+          cp resources_sidebar.php _deploy/resources_sidebar.php
+          cp public/assets/css/ui-v2.css _deploy/public/assets/css/ui-v2.css
+          test "$(find _deploy -type f | wc -l)" -eq 2
+          echo "Somente dois arquivos de interface; sem .env, uploads, banco ou arquivos da producao."
+
+      - name: Instalar cliente FTP seguro
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq lftp
+
+      - name: Publicar por FTPS em fiscalizacao-homolog
+        shell: bash
+        working-directory: _deploy
+        run: |
+          set -euo pipefail
+          lftp -u "$FTP_USER","$FTP_PASS" "ftp://$FTP_HOST" <<'LFTP'
+          set cmd:fail-exit yes
+          set net:max-retries 2
+          set net:timeout 20
+          set ftp:passive-mode yes
+          set ftp:ssl-force yes
+          set ftp:ssl-protect-data yes
+          set ssl:verify-certificate yes
+          set xfer:clobber yes
+          cd public_html/fiscalizacao-homolog
+          put -o resources_sidebar.php resources_sidebar.php
+          put -o public/assets/css/ui-v2.css public/assets/css/ui-v2.css
+          bye
+          LFTP
+
+      - name: Conferir publicacao no dominio de homologacao
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --max-time 30 --retry 3 \
+            --header 'Cache-Control: no-cache' \
+            "https://fiscalizacao-homolog.sindicosgestao.com.br/assets/css/ui-v2.css?sidebar=${GITHUB_SHA}" \
+            --output /tmp/fiscaliza-menu.css
+          grep -Fq '.brand-primary{' /tmp/fiscaliza-menu.css
+          grep -Fq '.sidebar-group.is-collapsed' /tmp/fiscaliza-menu.css
+          echo 'Novo tema confirmado no dominio de homologacao.'
